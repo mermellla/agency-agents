@@ -78,3 +78,8 @@ integrations/qwen/agents/
 integrations/kimi/*/
 !integrations/openclaw/README.md
 !integrations/kimi/README.md
+
+# Python tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

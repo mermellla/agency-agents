@@ -1,0 +1,13 @@
+# Quant baseline QB-1.0 — §12. qb_rules_version is recorded on every decision; a change opens a phase.
+schema_version: 1
+qb_rules_version: "1.0.0"
+candidate: highest_composite_score_not_held_per_scan
+entry: first_eligible_sip_print_after_order_eligible_at   # §8.9; order_eligible_at = scanner_completed_at + baseline validation
+size_pct_of_equity: 20
+stop_atr_multiple: 2.0
+atr_period: 14
+target_r_multiple: 2.0
+time_stop_trading_days: 5
+max_positions: 5
+exits_before_entries: true
+drift_judgment: none

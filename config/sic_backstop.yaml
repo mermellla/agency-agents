@@ -1,0 +1,58 @@
+# SIC-code backstop for the ethical exclusion layer — §4.4 items 2–3, ADR-0006.
+# Every code below was checked against https://www.sec.gov/info/edgar/siccodes.htm on 2026-09-13.
+# Codes proposed in the spec that DO NOT EXIST in EDGAR's list are recorded under `spec_codes_not_in_edgar`
+# and must not be relied on; the amendment is proposed in docs/phase0/02-open-issues.md (OI-04).
+schema_version: 1
+version: "2026.09.13-seed"
+updated_on: 2026-09-13
+source: https://www.sec.gov/info/edgar/siccodes.htm
+
+deny:
+  fossil_fuels:
+    - {sic: 1220, title: "BITUMINOUS COAL & LIGNITE MINING"}
+    - {sic: 1221, title: "BITUMINOUS COAL & LIGNITE SURFACE MINING"}
+    - {sic: 1311, title: "CRUDE PETROLEUM & NATURAL GAS"}
+    - {sic: 1381, title: "DRILLING OIL & GAS WELLS"}
+    - {sic: 1382, title: "OIL & GAS FIELD EXPLORATION SERVICES"}
+    - {sic: 1389, title: "OIL & GAS FIELD SERVICES, NEC"}
+    - {sic: 2911, title: "PETROLEUM REFINING"}
+    - {sic: 4610, title: "PIPE LINES (NO NATURAL GAS)", note: "replaces spec's 4612/4613, which are not EDGAR codes"}
+    - {sic: 4922, title: "NATURAL GAS TRANSMISSION"}
+  weapons_defense:
+    - {sic: 3480, title: "ORDNANCE & ACCESSORIES, (NO VEHICLES/GUIDED MISSILES)", note: "covers spec's 3480/3483/3489; only 3480 exists in EDGAR"}
+    - {sic: 3760, title: "GUIDED MISSILES & SPACE VEHICLES & PARTS"}
+
+# Default-deny: a name with one of these SICs is skipped with NEEDS_ETHICAL_REVIEW unless it appears in
+# exclusions.yaml `allow` (§4.4 item 3, item 6).
+default_deny:
+  - {sic: 3720, title: "AIRCRAFT & PARTS"}
+  - {sic: 3721, title: "AIRCRAFT"}
+  - {sic: 3724, title: "AIRCRAFT ENGINES & ENGINE PARTS"}
+  - {sic: 3728, title: "AIRCRAFT PARTS & AUXILIARY EQUIPMENT, NEC"}
+  - {sic: 3812, title: "SEARCH, DETECTION, NAVAGATION, GUIDANCE, AERONAUTICAL SYS"}
+  - {sic: 3730, title: "SHIP & BOAT BUILDING & REPAIRING", note: "added: naval shipbuilders (e.g. HII) sit here; civil yards too"}
+  - {sic: 3533, title: "OIL & GAS FIELD MACHINERY & EQUIPMENT", note: "added: oilfield-services equipment makers; spec scope includes oilfield services"}
+  - {sic: 6792, title: "OIL ROYALTY TRADERS", note: "added: royalty trusts carry producer economics"}
+
+# Listed in the spec as "review before enabling"; NOT enforced until the owner decides (§4.4 item 2).
+review_before_enabling:
+  - {sic: 4923, title: "NATURAL GAS TRANSMISISON & DISTRIBUTION", reason: "mixes utility distribution (out of scope)"}
+  - {sic: 4924, title: "NATURAL GAS DISTRIBUTION", reason: "utility (out of scope)"}
+  - {sic: 5171, title: "WHOLESALE-PETROLEUM BULK STATIONS & TERMINALS"}
+  - {sic: 5172, title: "WHOLESALE-PETROLEUM & PETROLEUM PRODUCTS (NO BULK STATIONS)"}
+  - {sic: 2990, title: "MISCELLANEOUS PRODUCTS OF PETROLEUM & COAL", reason: "added for review: asphalt/lubricant makers"}
+
+# Universe-construction codes (§6.1), not ethical: used by ADR-0005 to drop non-operating issuers.
+universe_exclude:
+  - {sic: 6770, title: "BLANK CHECKS", reason: "SPACs"}
+  - {sic: 6221, title: "COMMODITY CONTRACTS BROKERS & DEALERS", reason: "commodity pools / futures-based trusts"}
+  - {sic: 6189, title: "ASSET-BACKED SECURITIES"}
+
+spec_codes_not_in_edgar:   # verified absent on 2026-09-13
+  - {sic: 1241, spec_meaning: "coal mining services"}
+  - {sic: 1321, spec_meaning: "natural gas liquids"}
+  - {sic: 3483, spec_meaning: "ammunition, except small arms"}
+  - {sic: 3489, spec_meaning: "ordnance and accessories, NEC"}
+  - {sic: 3795, spec_meaning: "tanks and tank components"}
+  - {sic: 4612, spec_meaning: "crude petroleum pipelines"}
+  - {sic: 4613, spec_meaning: "refined petroleum pipelines"}

@@ -1,0 +1,13 @@
+# ADR-0019: when any versioned artifact changes (prompt, risk_policy, scanner, qb_rules, exclusions, fees,
+# model IDs, migrations), the owner records the reason here in the same commit. Boot compares the versions in
+# force with the latest experiment_phase; on drift it opens a new phase using this file, or halts with
+# PHASE_REASON_MISSING if reason is empty or the file's `for_versions` does not match the detected drift.
+schema_version: 1
+category: strategy            # strategy | correctness | safety | initial
+reason: "Initial phase (Phase 0 package)."
+for_versions:
+  prompt_version: null
+  config_version: null
+  scanner_version: "1.0.0"
+  qb_rules_version: "1.0.0"
+  exclusion_list_version: "2026.09.13-seed"

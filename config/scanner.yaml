@@ -1,0 +1,32 @@
+# Scanner composite score (ADR-0008) and regime classifier thresholds (ADR-0009).
+# scanner_version is recorded on every decision; a change opens a phase.
+schema_version: 1
+scanner_version: "1.0.0"
+
+composite_score:                 # ADR-0008 — cross-sectional z-scores, clipped to [-3, 3], weighted, mapped to [0,1]
+  weights:
+    momentum_20d: 0.20
+    momentum_5d: 0.10
+    relative_strength_vs_spy_20d: 0.15
+    volatility_expansion: 0.10
+    breakout_daily: 0.15
+    gap_vs_prior_close: 0.10
+    intraday_setup: 0.10         # ORB_IEX_ASSISTED / ORB_SIP_CONFIRMED / GAP_CONTINUATION presence & strength
+    catalyst: 0.10               # earnings surprise, 8-K, qualifying news within max_news_age_hours
+  penalties:
+    rsi_overbought_above: 80     # subtract 0.10 when RSI(14) > 80
+    earnings_within_2_sessions_no_catalyst: 0.05
+  clip_z: 3.0
+  unavailable_signal_policy: renormalize_weights   # dropped-signal weights (§6.3) are excluded and remaining weights renormalized
+
+regime:                          # ADR-0009 — computed on SPY daily bars and universe breadth before the first scan each day
+  trend_fast_sma: 20
+  trend_slow_sma: 50
+  trend_slope_lookback_days: 10
+  realized_vol_lookback_days: 20
+  high_vol_annualized_pct: 25
+  low_vol_annualized_pct: 10
+  risk_off_drawdown_from_20d_high_pct: 5.0
+  breadth_lookback_days: 1
+  breadth_bull_pct_above_50sma: 60
+  breadth_bear_pct_above_50sma: 40
