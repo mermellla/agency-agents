@@ -26,10 +26,13 @@ finra_taf:
 
 cat_fee:
   applies_to: both
-  unit: per_share
+  unit: per_executed_equivalent_share
   rounding: nearest_cent
-  source: "Consolidated Audit Trail funding model (CAT LLC); Alpaca reports it as activity FEE/CAT. Rate row left empty until the owner supplies the current published rate."
-  schedule: []
+  classification: pass_through_unverified   # owner instruction 2026-09-13: kept separate from customer-debited fees until
+                                            # Alpaca's pass-through behaviour is verified (activity FEE/CAT on the paper/live account)
+  source: "Owner instruction 2026-09-13 (CAT LLC funding model; Alpaca activity sub-type FEE/CAT)"
+  schedule:
+    - {effective_from: 2026-05-01, effective_to: 2026-12-31, rate_per_share: 0.000001}
 
 broker_commission_usd: 0.0
 market_data_monthly_usd: 0.0        # basic plan

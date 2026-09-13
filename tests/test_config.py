@@ -61,7 +61,7 @@ def test_config_version_is_content_hash(settings):
 def test_versions_present(settings):
     v = settings.versions
     assert v.scanner_version == "1.0.0" and v.qb_rules_version == "1.0.0"
-    assert v.exclusion_list_version.startswith("2026.09.13-seed")
+    assert v.exclusion_list_version == "2026.09.13-r1+sic:2026.09.13-r1"
 
 
 def test_fee_schedule_shape(settings):
@@ -82,7 +82,21 @@ def test_exclusions_schema(settings):
     for e in ex["deny"]:
         assert set(e) >= {"symbol", "category", "reason", "source"}
         assert e["category"] in ex["categories"]
-    assert {"XOM", "LMT", "GEO"} <= {e["symbol"] for e in ex["deny"]}
+    symbols = {e["symbol"] for e in ex["deny"]}
+    assert {
+        "XOM",
+        "LMT",
+        "GEO",
+        "GE",
+        "PLTR",
+        "LDOS",
+        "CACI",
+        "SAIC",
+        "BAH",
+        "OSK",
+    } <= symbols  # owner-retained edge cases + OSK
+    assert not ({"HWM", "HON", "POWW", "HES"} & symbols)  # owner-approved cleanup
+    assert not any(e.get("needs_owner_review") for e in ex["deny"])
 
 
 EDGAR_SIC_SNAPSHOT_2026_09_13 = {
@@ -127,6 +141,10 @@ def test_sic_backstop_only_uses_real_edgar_codes(settings):
         | {int(r["sic"]) for r in sic["universe_exclude"]}
         | {int(r["sic"]) for r in sic["review_before_enabling"]}
     )
-    assert used <= EDGAR_SIC_SNAPSHOT_2026_09_13
-    assert not (used & NOT_IN_EDGAR)
+    assert used - {3795} <= EDGAR_SIC_SNAPSHOT_2026_09_13
+    assert not ((used - {3795}) & NOT_IN_EDGAR)
+    assert {4923, 4924} <= {int(r["sic"]) for r in sic["default_deny"]}  # owner decision 2026-09-13
     assert {int(r["sic"]) for r in sic["spec_codes_not_in_edgar"]} == NOT_IN_EDGAR
+    assert 3795 in {
+        int(r["sic"]) for r in sic["deny"]["weapons_defense"]
+    }  # owner decision: retained despite absence from EDGAR

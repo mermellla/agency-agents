@@ -31,3 +31,12 @@ def test_spac_is_universe_exclusion_not_ethical():
 
 def test_clean_name_eligible():
     assert screen().screen("AAPL", 3571) == (UniverseStatus.ELIGIBLE, None)
+
+
+def test_owner_decisions_2026_09_13():
+    sc = screen()
+    assert sc.screen("OKE", 4923)[0] == UniverseStatus.EXCLUDED_ETHICAL  # denylist first
+    assert sc.screen("ATO", 4924)[0] == UniverseStatus.NEEDS_ETHICAL_REVIEW  # gas utility: skipped until allowlisted
+    assert sc.screen("OSK", 3711)[0] == UniverseStatus.EXCLUDED_ETHICAL
+    assert sc.screen("HON", 3724)[0] == UniverseStatus.NEEDS_ETHICAL_REVIEW  # dropped from denylist, still not tradable
+    assert sc.screen("HWM", 3350) == (UniverseStatus.ELIGIBLE, None)

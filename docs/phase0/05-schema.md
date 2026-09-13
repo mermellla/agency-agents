@@ -1,7 +1,7 @@
 # Supabase / Postgres schema summary
 
-Migrations: `supabase/migrations/20260913000001…10_*.sql` (nine files; 0008 was renumbered 0010 so the security
-migration runs last). Applied clean on PostgreSQL 16.13: **38 tables, 32 enums, 21 functions**, all in schema
+Migrations: `supabase/migrations/20260913000001…11_*.sql` (ten files; 0008 was renumbered 0010 so the security
+migration runs after everything it secures; 0011 adds fee classification, A-07). Applied clean on PostgreSQL 16.13: **38 tables, 32 enums, 21 functions**, all in schema
 `trading` (ADR-0022), nothing in `public`. Three tables are deferred in `supabase/migrations_deferred/`
 (`approvals` → S9; `cost_periods`, `analysis_reports` → S7). Ledger style: ADR-0002. Capital reservation: ADR-0021.
 
@@ -11,7 +11,7 @@ migration runs last). Applied clean on PostgreSQL 16.13: **38 tables, 32 enums, 
 | Experiment | `experiments`, `experiment_phases`, `portfolios`, `prompt_versions`, `config_versions`, `scanner_versions`, `qb_rules_versions`, `exclusion_list_versions` | one open phase per experiment (partial unique index); one primary and one broker-facing portfolio per experiment; `experiments.live_locked_out` CHECK |
 | Market | `instruments`, `universe_memberships`, `regimes`, `scans`, `candidates`, `candidate_outcomes`, `source_status`, `benchmark_prices` | `candidates` carries `signal_bar_time`, `signal_observed_at`, `sip_signal_*`, IEX price + age at scan/triage/decision/order (D-50); `scans.bars_end_at ≤ started_at` |
 | Decisions | `data_snapshots`, `decisions`, `decision_sources`, `llm_calls` | full §7.6 column set; five NOT NULL version FKs; `pre_critique_proposal` jsonb; `raw_model_output` |
-| Execution | `positions`, `orders` (+ `reserved_notional_usd`), `order_events`, `fills`, `lots`, `lot_events`, `cash_ledger`, `fees`, `stop_coverage`, `reconciliations`, `owner_resolutions`, `halts`, `broker_policy_checks`, `budget_ledger` (`approvals` deferred to S9) | `client_order_id` UNIQUE; `broker_order_id`, `broker_fill_id`, `order_events.broker_event_id` UNIQUE (idempotent replay); `portfolio_available_cash()` = balance − open BUY reservations |
+| Execution | `positions`, `orders` (+ `reserved_notional_usd`), `order_events`, `fills`, `lots`, `lot_events`, `cash_ledger`, `fees` (+ `classification`), `stop_coverage`, `reconciliations`, `owner_resolutions`, `halts`, `broker_policy_checks`, `budget_ledger` (`approvals` deferred to S9) | `client_order_id` UNIQUE; `broker_order_id`, `broker_fill_id`, `order_events.broker_event_id` UNIQUE (idempotent replay); `portfolio_available_cash()` = balance − open BUY reservations |
 | Analytics | `forecast_resolutions`, `closed_trades`, `shadow_links`, `notifications` (`cost_periods`, `analysis_reports` deferred to S7) | `closed_trades` has every §10.1/§13.3 column incl. both P&L views, cost categories, `overnight_gap_exposure`, `post_exit_return_{1,5}s_pct`, `time_in_loss_seconds` |
 
 ## Invariants and where they are enforced (§10.2)

@@ -1,6 +1,6 @@
 # ADR-0019 — Version computation and phase-opening mechanics
 
-**Appendix C item:** — (implied by §7.7, §10.5, §13.2) · **Status:** Accepted · **Date:** 2026-09-13
+**Appendix C item:** — (implied by §7.7, §10.5, §13.2) · **Status:** Accepted; `sequence` rule added in Slice 1 · **Date:** 2026-09-13
 
 ## Context
 §13.2: any change to the prompt, risk config, scanner weights or version, regime thresholds, QB rules, model IDs,
@@ -20,8 +20,10 @@ changes silently or online. The spec names the version keys but not how they are
 | model IDs | from `risk_policy.yaml` (already inside `config_version`), also stored explicitly on the phase | `experiment_phases` |
 
 Boot sequence (before reconciliation): compute the versions; load the open phase; if every version and the code SHA
-match, continue. If anything differs, read `config/phase_change.yaml`: it must carry a non-empty `reason`, a `category`
-(`strategy` | `correctness` | `safety`), and `for_versions` naming the new values that changed. If it does, close the
+match, continue. If anything differs, read `config/phase_change.yaml`: it must carry `sequence` equal to the next phase number
+(so a record that already justified phase N can never justify phase N+1), a non-empty `reason`, a `category`
+(`strategy` | `correctness` | `safety`), and `for_versions` naming the new values of every drifted version key
+(code and migration changes need only the sequence, reason and category). If it does, close the
 open phase (`ended_at = now()`), insert the next phase with all versions, log `what_changed` (old → new per key, plus the
 code SHA), email `phase_opened`. If it does not, **halt** with `PHASE_REASON_MISSING`. The database refuses a decision
 whose versions differ from its phase (`VERSION_DRIFT`, tested), so a missed reason cannot leak into the dataset.

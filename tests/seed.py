@@ -20,12 +20,13 @@ class Seed:
 
     @classmethod
     def create(cls, conn) -> Seed:
+        tag = uuid.uuid4().hex[:8]  # unique per seed so registry rows never collide with boot-registered content
         v = {
             "prompt_version": "p1.0.0",
-            "config_version": "cfg-" + uuid.uuid4().hex[:8],
-            "scanner_version": "1.0.0",
-            "qb_rules_version": "1.0.0",
-            "exclusion_list_version": "2026.09.13-seed",
+            "config_version": "cfg-" + tag,
+            "scanner_version": "test-" + tag,
+            "qb_rules_version": "test-" + tag,
+            "exclusion_list_version": "test-" + tag,
         }
         cur = conn.cursor()
         cur.execute("set search_path = trading, public")

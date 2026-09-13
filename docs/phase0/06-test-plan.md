@@ -30,9 +30,9 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 | T-18 | Early-warning stream: focus-set cap (positions before candidates, hysteresis); disconnect → REST fallback + gap logged | Unit + Integration | yes | `test_focus_set_cap_positions_first`, `test_stream_disconnect_fallback` | S6 |
 | T-19 | `MARKET_DATA_PLAN` switch: mocked real-time SIP adapter changes no scanner code | Unit (import graph / file hash) | yes | `test_plan_flip_changes_no_scanner_module` | S2 |
 | T-20 | No secrets, no live URL, no funding endpoint, no live key env read in the codebase | Unit (grep) | ✔ | test_no_live_or_secret_strings ✔ | P0 |
-| T-55 | Supabase exposure: `anon`/`authenticated` cannot read, write or call anything in `trading`; worker role cannot DELETE; `public` empty; boot checks for Data-API exposure and bucket privacy (ADR-0022) | DB ✔ + Integration | ✔ DB | tests/test_security.py (4) ✔; `test_boot_exposure_checks` (mock REST/Storage) | P0 / S1 |
+| T-55 | Supabase exposure: `anon`/`authenticated` cannot read, write or call anything in `trading`; worker role cannot DELETE; `public` empty; boot checks for Data-API exposure and bucket privacy (ADR-0022) | DB ✔ + Integration ✔ | ✔ | tests/test_security.py (4) ✔; tests/test_slice1_checks.py (exposed → halt, 401/404 → pass, public bucket → halt, missing → created private, keys missing → halt) ✔ | P0 / S1 ✔ |
 | T-56 | Fee engine: effective-dated schedule selection, per-trade cap, unknown date raises (ADR-0012, A-06) | Unit | ✔ | tests/test_fees.py (3) ✔ | P0 |
-| T-21 | No self-modification: worker has no write path to prompts/config; boot halts on version drift without a reason | Integration | yes | `test_boot_halts_without_phase_reason`, `test_boot_opens_phase_with_reason` | S1 |
+| T-21 | No self-modification: worker has no write path to prompts/config; boot halts on version drift without a fresh justification; reused version string with different content refused | Integration ✔ | ✔ | tests/test_slice1_boot.py (config change without reason halts; with reason opens phase; code change; stale sequence; VERSION_REUSED) | S1 ✔ |
 | T-22 | `settles_on` = T+1 from the calendar; not used for eligibility | Unit | yes | `test_settlement_date_metadata_only` | S3 |
 | T-23 | Prompt v1 states every §7.7 constraint; strict JSON; invalid output → `REJECTED_INVALID_OUTPUT` | Unit | yes (golden prompt test) | `test_prompt_constraints_present`, `test_invalid_output_rejected` | S5 |
 | T-24 | Regime classifier fixtures for all seven outcomes | Unit | yes | `test_regime_classifier_v1` | S2 |
@@ -46,18 +46,19 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 | T-32 | QB-1.0: rules, `order_eligible_at` = scan completion + validation, no drift judgment | Integration | yes | `test_qb_rules_v1`, `test_qb_eligibility_earlier_than_llm` | S4 |
 | T-33 | Fees and dividends applied in every mode; two P&L views | Unit | yes | `test_fee_engine_schedule`, `test_dividend_credit` | S4 |
 | T-34 | Context blob stored, hash permanent, prune after 90 days touches only the blob | Integration (mock storage) | yes | `test_context_prune` | S5 |
-| T-35 | Scheduler follows the Alpaca calendar (holiday, half-day) | Unit | yes | `test_scheduler_calendar` | S1 |
+| T-35 | Scheduler follows the Alpaca calendar (holiday, half-day) | Unit ✔ | ✔ | tests/test_slice1_checks.py (calendar parse, T+1 over a holiday, half-day scan count, holiday skip) | S1 ✔ |
 | T-36 | Daily digest email content and notification audit row | Unit | yes | `test_daily_digest` | S4 |
 | T-37 | Approval-link flow with expiry (LIVE only) | Integration | yes | `test_approval_link_expiry` | S9 (gated) |
 | T-38 | Benchmarks: SPY/VTI bought at start close, marked daily; cash flat | Unit | yes | `test_benchmarks` | S4 |
 | T-39 | Shadows: critique-changed proposal spawns paired + parallel entries; discretionary exit leaves the deterministic twin running | Integration | yes | `test_critique_shadow_spawn`, `test_det_exit_twin_independent` | S6 |
 | T-40..52 | §15 edge cases: holidays/half-days; halted stock (no repricing); split/symbol change before re-arm; delisting force-close; IPO exclusion; `REJECTED_BROKER` never resized; Supabase outage full halt; Alpaca outage entries-only halt; crash mid-order; crash with pending reconstruction resumes; default-deny after the fact; $2,000 crossing keeps 1x; paper reset re-applies policy | Integration | yes | one test per case, named `test_edge_<case>` | S3–S6 |
 | T-53 | Candidate outcomes: every candidate, traded or not, gets forward returns at each horizon | Integration | yes | `test_candidate_outcomes_complete` | S7 |
-| T-54 | Phase test: prompt bump opens a phase; subsequent decisions carry it | DB ✔ + Integration | ✔ | test_prompt_bump_opens_new_phase_and_decisions_carry_it ✔; `test_boot_opens_phase_with_reason` | S1 |
+| T-54 | Phase test: version bump opens a phase; subsequent decisions carry it | DB ✔ + Integration ✔ | ✔ | test_prompt_bump_opens_new_phase_and_decisions_carry_it ✔; test_config_change_with_reason_opens_phase_and_decisions_carry_it ✔ | S1 ✔ |
 
-## Already written and passing (78)
+## Already written and passing (97)
 - `tests/test_migrations.py` (3): all §10.1 tables exist; RLS everywhere; Postgres enums == Python enums.
 - `tests/test_db_invariants.py` (39, incl. 7 parametrized no-delete cases): every schema-enforced invariant listed in `05-schema.md`.
+- `tests/test_slice1_boot.py` (9) and `tests/test_slice1_checks.py` (9): Slice 1 boot spine, exposure checks, NullBroker contract, calendar, scheduler.
 - `tests/test_reservation.py` (7): ADR-0021 reservation bounds, release, conversion, no growth, sells reserve nothing, two-connection race.
 - `tests/test_security.py` (4): ADR-0022 client roles denied, worker cannot delete, `public` empty.
 - `tests/test_fees.py` (3): effective-dated fee schedules.

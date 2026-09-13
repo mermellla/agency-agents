@@ -10,8 +10,8 @@ tradeagent/
   interfaces/        __init__.py                    Protocols for adapters and services (P0 ✔)
   config/            loader.py                      YAML → validated Settings; config_version; LIVE lockout (P0 ✔)
   exclusions.py                                     ethical screen over denylist + SIC backstop (P0 ✔)
-  versioning/        registry.py, phases.py         version registries, boot drift check, phase opening (ADR-0019)   S1
-  persistence/       ledger.py, repos/*.py          psycopg repositories over the schema; projection verify        S1
+  versioning/        registry.py, phases.py         version registries, boot drift check, phase opening (ADR-0019)   S1 ✔
+  persistence/       db.py                          psycopg Database over the schema; cash-chain verify             S1 ✔
   adapters/
     alpaca/          market_data.py (SIP_DELAYED, IEX_REALTIME, SIP_REALTIME), stream.py, broker_paper.py,
                      broker_null.py, calendar.py, corporate_actions.py, activities.py, news.py               S2/S3
@@ -31,8 +31,8 @@ tradeagent/
                      deterministic_exit_shadow.py                                                              S4/S6
   analytics/         forecast_resolution.py (ADR-0017), candidate_outcomes.py, closed_trades.py,
                      report.py (§13.3, ADR-0016), fees.py (ADR-0012)                                           S4/S7
-  ops/               scheduler.py (calendar-driven), boot.py (sequence below), halts.py, notifications.py,
-                     context_prune.py (§10.4), digest.py                                                       S1–S4
+  ops/               scheduler.py (calendar-driven) ✔, boot.py (sequence below) ✔, checks.py (ADR-0022) ✔,
+                     halts.py, notifications.py, context_prune.py (§10.4), digest.py                           S1–S4
   cli.py             `tradeagent run | boot-check | report | verify-projections | probe-fractional-stop`       S1+
 ```
 Dependency direction: `adapters → domain`; `scanner/agent/risk/execution/portfolios/analytics → domain + interfaces +
