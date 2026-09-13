@@ -1,0 +1,97 @@
+# Ethical exclusion denylist — §4.4 item 1 (primary mechanism), ADR-0006.
+# STATUS: SEED. The owner reviews and signs off before PAPER (§4.4 "the owner reviews the seed list before PAPER").
+# Entries with needs_owner_review: true are the coding agent's best reading of the scope rules and must be confirmed.
+# A change to this file bumps `version`, is recorded as exclusion_list_version on every decision, and opens a phase.
+schema_version: 1
+version: "2026.09.13-seed"
+updated_on: 2026-09-13
+categories: [fossil_fuels, weapons_defense, private_prisons]
+
+deny:
+  # ---- Fossil fuels: producers, miners, refiners, pipelines, oilfield services (D-11) ----
+  - {symbol: XOM,  category: fossil_fuels, reason: "integrated oil & gas producer/refiner", source: "10-K SIC 2911"}
+  - {symbol: CVX,  category: fossil_fuels, reason: "integrated oil & gas producer/refiner", source: "10-K SIC 2911"}
+  - {symbol: COP,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: OXY,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: EOG,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: DVN,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: FANG, category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: APA,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: CTRA, category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: EQT,  category: fossil_fuels, reason: "natural gas producer", source: "10-K SIC 1311"}
+  - {symbol: EXE,  category: fossil_fuels, reason: "natural gas producer (Expand Energy)", source: "10-K SIC 1311", needs_owner_review: true}
+  - {symbol: AR,   category: fossil_fuels, reason: "natural gas producer", source: "10-K SIC 1311"}
+  - {symbol: RRC,  category: fossil_fuels, reason: "natural gas producer", source: "10-K SIC 1311"}
+  - {symbol: OVV,  category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: MTDR, category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: PR,   category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: CHRD, category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: CIVI, category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: SM,   category: fossil_fuels, reason: "oil & gas producer", source: "10-K SIC 1311"}
+  - {symbol: NOG,  category: fossil_fuels, reason: "non-operated oil & gas interests", source: "10-K SIC 1311"}
+  - {symbol: HES,  category: fossil_fuels, reason: "oil & gas producer (verify still listed after CVX acquisition)", source: "10-K SIC 1311", needs_owner_review: true}
+  - {symbol: MPC,  category: fossil_fuels, reason: "refiner", source: "10-K SIC 2911"}
+  - {symbol: VLO,  category: fossil_fuels, reason: "refiner", source: "10-K SIC 2911"}
+  - {symbol: PSX,  category: fossil_fuels, reason: "refiner", source: "10-K SIC 2911"}
+  - {symbol: DINO, category: fossil_fuels, reason: "refiner (HF Sinclair)", source: "10-K SIC 2911"}
+  - {symbol: PBF,  category: fossil_fuels, reason: "refiner", source: "10-K SIC 2911"}
+  - {symbol: DK,   category: fossil_fuels, reason: "refiner", source: "10-K SIC 2911"}
+  - {symbol: SLB,  category: fossil_fuels, reason: "oilfield services", source: "10-K SIC 1389"}
+  - {symbol: HAL,  category: fossil_fuels, reason: "oilfield services", source: "10-K SIC 1389"}
+  - {symbol: BKR,  category: fossil_fuels, reason: "oilfield services & equipment", source: "10-K SIC 3533"}
+  - {symbol: NOV,  category: fossil_fuels, reason: "oilfield equipment", source: "10-K SIC 3533"}
+  - {symbol: FTI,  category: fossil_fuels, reason: "oilfield services (TechnipFMC)", source: "10-K SIC 3533"}
+  - {symbol: WFRD, category: fossil_fuels, reason: "oilfield services", source: "10-K SIC 1389"}
+  - {symbol: HP,   category: fossil_fuels, reason: "contract drilling", source: "10-K SIC 1381"}
+  - {symbol: PTEN, category: fossil_fuels, reason: "contract drilling & pressure pumping", source: "10-K SIC 1381"}
+  - {symbol: LBRT, category: fossil_fuels, reason: "hydraulic fracturing services", source: "10-K SIC 1389"}
+  - {symbol: RIG,  category: fossil_fuels, reason: "offshore drilling", source: "10-K SIC 1381", needs_owner_review: true}
+  - {symbol: VAL,  category: fossil_fuels, reason: "offshore drilling (Valaris)", source: "10-K SIC 1381"}
+  - {symbol: KMI,  category: fossil_fuels, reason: "pipelines", source: "10-K SIC 4922"}
+  - {symbol: WMB,  category: fossil_fuels, reason: "pipelines (natural gas transmission)", source: "10-K SIC 4922"}
+  - {symbol: OKE,  category: fossil_fuels, reason: "pipelines / midstream", source: "10-K SIC 4922"}
+  - {symbol: TRGP, category: fossil_fuels, reason: "midstream gas processing & pipelines", source: "10-K SIC 4922"}
+  - {symbol: LNG,  category: fossil_fuels, reason: "LNG export (Cheniere)", source: "10-K SIC 4922"}
+  - {symbol: DTM,  category: fossil_fuels, reason: "pipelines (DT Midstream)", source: "10-K SIC 4922"}
+  - {symbol: KNTK, category: fossil_fuels, reason: "midstream (Kinetik)", source: "10-K SIC 4922"}
+  - {symbol: BTU,  category: fossil_fuels, reason: "coal miner", source: "10-K SIC 1220"}
+  - {symbol: AMR,  category: fossil_fuels, reason: "metallurgical coal miner", source: "10-K SIC 1220"}
+  - {symbol: HCC,  category: fossil_fuels, reason: "metallurgical coal miner", source: "10-K SIC 1220"}
+  - {symbol: CNR,  category: fossil_fuels, reason: "coal miner (Core Natural Resources; ex-CEIX/ARCH)", source: "10-K SIC 1220", needs_owner_review: true}
+  - {symbol: ARLP, category: fossil_fuels, reason: "coal miner (PTP)", source: "10-K SIC 1220"}
+  # ---- Weapons and defense: pure-play contractors, firearms/ammunition, conglomerates with large defense segments (D-12, D-14) ----
+  - {symbol: LMT,  category: weapons_defense, reason: "pure-play defense contractor", source: "10-K segment reporting"}
+  - {symbol: RTX,  category: weapons_defense, reason: "conglomerate; Raytheon defense segment", source: "10-K segment reporting"}
+  - {symbol: NOC,  category: weapons_defense, reason: "pure-play defense contractor", source: "10-K segment reporting"}
+  - {symbol: GD,   category: weapons_defense, reason: "defense contractor (combat systems, marine)", source: "10-K segment reporting"}
+  - {symbol: BA,   category: weapons_defense, reason: "conglomerate with large Defense, Space & Security segment", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: LHX,  category: weapons_defense, reason: "defense electronics & missiles", source: "10-K segment reporting"}
+  - {symbol: HII,  category: weapons_defense, reason: "naval shipbuilder", source: "10-K SIC 3730"}
+  - {symbol: LDOS, category: weapons_defense, reason: "defense IT/services contractor", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: CACI, category: weapons_defense, reason: "defense IT/services contractor", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: SAIC, category: weapons_defense, reason: "defense IT/services contractor", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: BAH,  category: weapons_defense, reason: "defense/intelligence consulting", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: KTOS, category: weapons_defense, reason: "defense drones & systems", source: "10-K segment reporting"}
+  - {symbol: AVAV, category: weapons_defense, reason: "loitering munitions & military drones", source: "10-K segment reporting"}
+  - {symbol: MRCY, category: weapons_defense, reason: "defense electronics", source: "10-K segment reporting"}
+  - {symbol: CW,   category: weapons_defense, reason: "defense & naval systems (Curtiss-Wright)", source: "10-K segment reporting"}
+  - {symbol: BWXT, category: weapons_defense, reason: "naval nuclear reactors & components", source: "10-K segment reporting"}
+  - {symbol: TXT,  category: weapons_defense, reason: "conglomerate; Bell/Textron Systems defense segments", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: HWM,  category: weapons_defense, reason: "aerospace components incl. defense", source: "10-K SIC 3728", needs_owner_review: true}
+  - {symbol: TDG,  category: weapons_defense, reason: "aerospace components incl. defense", source: "10-K SIC 3728", needs_owner_review: true}
+  - {symbol: GE,   category: weapons_defense, reason: "GE Aerospace defense & propulsion segment", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: HON,  category: weapons_defense, reason: "conglomerate with defense & space unit", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: RKLB, category: weapons_defense, reason: "space & defense launch/systems", source: "10-K SIC 3760", needs_owner_review: true}
+  - {symbol: PLTR, category: weapons_defense, reason: "large defense/intelligence government segment", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: AXON, category: weapons_defense, reason: "weapons manufacturer (TASER)", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: SWBI, category: weapons_defense, reason: "firearms manufacturer", source: "10-K SIC 3480"}
+  - {symbol: RGR,  category: weapons_defense, reason: "firearms manufacturer", source: "10-K SIC 3480"}
+  - {symbol: OLN,  category: weapons_defense, reason: "Winchester ammunition segment", source: "10-K segment reporting", needs_owner_review: true}
+  - {symbol: POWW, category: weapons_defense, reason: "ammunition (verify current symbol/name)", source: "10-K SIC 3480", needs_owner_review: true}
+  - {symbol: NPK,  category: weapons_defense, reason: "defense ordnance segment (National Presto)", source: "10-K segment reporting", needs_owner_review: true}
+  # ---- Private prisons and detention operators (D-12; §4.4 item 4) ----
+  - {symbol: GEO,  category: private_prisons, reason: "private prison & detention operator", source: "10-K"}
+  - {symbol: CXW,  category: private_prisons, reason: "private prison operator (CoreCivic)", source: "10-K"}
+
+# Explicit allowlist for names that hit a default-deny SIC but are civil (§4.4 item 3). Empty at seed.
+allow: []

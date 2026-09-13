@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tradeagent"
+version = "0.0.1"
+description = "Experimental short-term trading agent (Spec v2.3) — Phase 0 package: domain models, interfaces, config, schema."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "psycopg[binary]>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10"]
+# Runtime adapters are added in Slice 1+ (ADR-0001): httpx, websockets, anthropic, apscheduler, structlog.
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tradeagent"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["db: requires a reachable PostgreSQL (TRADEAGENT_TEST_ADMIN_URL)"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

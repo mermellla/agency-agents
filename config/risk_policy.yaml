@@ -1,0 +1,95 @@
+# Risk policy and runtime configuration — Spec v2.3 Appendix B.
+# config_version is the sha256 of this file's canonical form (ADR-0019); a change opens a new phase (§13.2).
+# Values marked (ADR-xxxx) were delegated to the coding agent and are decided in docs/adr/.
+# Values marked (proposed) fill keys the spec lists without a default; see docs/phase0/02-open-issues.md.
+
+schema_version: 1
+
+execution:
+  execution_mode: DRY_RUN          # DRY_RUN | PAPER | LIVE. LIVE is architected but locked out (ADR-0020).
+  live_enabled: false
+  live_approval_until: null
+  live_approval_first_n_orders: null
+  broker_policy_enforce: true
+  broker_policy:                   # §8.10; written to Alpaca account configuration and verified on every boot
+    max_margin_multiplier: "1"     # Alpaca accepts "1" | "2" | "4"
+    no_shorting: true
+    max_options_trading_level: 0
+    # Proposed additions (open issue OI-03): fractional_trading: true, disable_overnight_trading: true
+
+capital:
+  experiment_equity_start: 500.00
+  overfill_buffer_pct: 1.0         # (proposed) §3.4 whole-share market orders capped at cash × (1 − 1%)
+
+position_limits:                   # §8.2
+  max_single_position_pct: 40
+  normal_position_range_pct: [10, 30]
+  max_positions: 5
+
+horizon:                           # §3.5
+  min_expected_hold: "1h"
+  max_expected_hold: "10 trading days"
+  latency_floor_min: 30            # ADR-0011
+
+universe:                          # §4.2, §6.1
+  min_price_usd: 5.00              # ADR-0003
+  min_avg_dollar_volume_usd: 10000000   # ADR-0003: 20-session average of daily $ volume on SIP daily bars
+  min_history_days: 60             # ADR-0003
+  require_fractionable: true       # ADR-0003 (a $50–$150 position needs fractional lots above ~$50/share)
+  include_adr_foreign: false       # ADR-0005
+
+scanner:                           # §6
+  scan_interval_min: 15
+  scan_top_n: 25
+  triage_top_k: 3
+  triage_score_threshold: 0.60     # (proposed) §6.4 "configurable thresholds" — composite score on [0,1]
+  triage_min_interval_min: 30      # (proposed) minimum spacing between triage passes on the same candidate set
+
+staleness:                         # §5.5
+  max_sip_bar_age_min: 20
+  max_iex_trade_age_min: 5
+  max_news_age_hours: 36           # (proposed)
+  fallback_price_tolerance_pct: 1.0   # (proposed) §14 rule 5
+
+extended_hours:                    # §4.3, ADR-0011 / open issue OI-02 (overnight session excluded)
+  ext_hours_max_quote_age_sec: 60  # (proposed)
+  ext_hours_max_cross_pct: 0.5     # (proposed)
+  sessions_allowed_for_exits: [premarket, after_hours]   # never overnight (Blue Ocean) — OI-02
+
+reviews:                           # §7.5
+  trigger_invalidation_proximity_pct: 1.5   # (proposed)
+
+simulation:                        # §8.9, §12
+  sim_fill_delay_min: 15
+  sim_fill_delay_margin_min: 2
+  sim_additional_slippage_bps: 0
+  forecast_resolution: "1-minute SIP bars, ticks for ambiguous minutes"
+
+market_data:                       # §5.6, ADR-0014, ADR-0015
+  market_data_plan: basic          # basic | algo_trader_plus
+  iex_stream_max_symbols: 30       # verified 2026-09-13 (Alpaca "Basic: 30 symbols")
+  candidate_outcome_horizons: ["15m", "1h", "1d", "5d"]
+  data_upgrade_review_equity_usd: 5000   # (proposed) §13.6
+  data_upgrade_benefit_factor: 2.0
+
+budget:                            # §9, ADR-0004
+  llm_monthly_cap_usd: 10.00
+  llm_entry_bucket_pct: 60         # (proposed) 60% entries (hard), 40% exits/reviews (soft)
+  proration: trading_days_in_calendar_month   # (proposed) unspent daily allowance carries within the month only
+  model_triage: claude-haiku-4-5
+  model_decision: claude-sonnet-5
+  model_critique: claude-sonnet-5
+  dossier_max_headlines: 8         # (proposed)
+  dossier_token_cap: 6000          # (proposed) full dossier; slim dossier cap 900
+
+guards:                            # §8.7
+  max_orders_per_day: 12           # (proposed)
+  max_llm_calls_per_hour: 40       # (proposed)
+  halt_after_consecutive_rejects: 3   # (proposed)
+  kill_switch_daily_loss_pct: null # off (bug containment only)
+
+retention:
+  context_retention_days: 90
+
+paths:
+  exclusion_list_path: config/exclusions.yaml
