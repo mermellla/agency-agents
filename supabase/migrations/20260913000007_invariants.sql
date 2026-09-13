@@ -1,8 +1,9 @@
 -- 0007: cross-table invariants enforced by triggers — §10.2, §8.4, §8.9, §7.4 (D-55).
+set search_path = trading, public;
 
 -- (a) §8.4 order state machine: validated transitions, every transition logged with a reason.
 create or replace function order_transition_allowed(from_s order_status, to_s order_status) returns boolean
-language sql immutable as $$
+language sql immutable set search_path = trading, public as $$
   select (from_s, to_s) in (
     ('PROPOSED', 'VALIDATED'), ('PROPOSED', 'REJECTED'),
     ('VALIDATED', 'PENDING_APPROVAL'), ('VALIDATED', 'SUBMITTED'), ('VALIDATED', 'FILL_PENDING_RECONSTRUCTION'), ('VALIDATED', 'REJECTED'),
@@ -13,7 +14,7 @@ language sql immutable as $$
   )
 $$;
 
-create or replace function orders_validate_transition() returns trigger language plpgsql as $$
+create or replace function orders_validate_transition() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   if new.status is distinct from old.status then
     if not order_transition_allowed(old.status, new.status) then
@@ -43,7 +44,7 @@ create trigger orders_validate_transition before update on orders for each row e
 
 -- (b) An order may only be created against a validated/executed decision whose timeline is complete, and it
 --     inherits order_eligible_at from that decision (§7.6, §8.9). No order may differ from its decision's ticker/side (§2).
-create or replace function orders_check_decision() returns trigger language plpgsql as $$
+create or replace function orders_check_decision() returns trigger language plpgsql set search_path = trading, public as $$
 declare d decisions%rowtype;
 begin
   select * into d from decisions where decision_id = new.decision_id;
@@ -77,7 +78,7 @@ create trigger orders_check_decision before insert on orders for each row execut
 
 -- (c) §8.9 anti-look-ahead: no simulated fill before order_eligible_at. Broker fills earlier than eligibility are
 --     flagged (clock skew) rather than rejected, because the broker is authoritative about what happened (§3.2).
-create or replace function fills_check_eligibility() returns trigger language plpgsql as $$
+create or replace function fills_check_eligibility() returns trigger language plpgsql set search_path = trading, public as $$
 declare o orders%rowtype;
 begin
   select * into o from orders where id = new.order_id;
@@ -115,7 +116,7 @@ create trigger fills_no_update before update on fills for each row execute funct
 
 -- (d) §7.4 / D-55 forecast contract immutability: frozen columns can be set once, never changed.
 --     Timeline columns fill monotonically (set once, never overwritten with a different value).
-create or replace function decisions_immutable_columns() returns trigger language plpgsql as $$
+create or replace function decisions_immutable_columns() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   if old.forecast_target_price_at_entry is not null and new.forecast_target_price_at_entry is distinct from old.forecast_target_price_at_entry
      or old.forecast_invalidation_price_at_entry is not null and new.forecast_invalidation_price_at_entry is distinct from old.forecast_invalidation_price_at_entry
@@ -153,7 +154,7 @@ create trigger decisions_immutable_columns before update on decisions for each r
 
 -- (e) A decision must belong to the open phase of its experiment at insert time and the phase's versions must match
 --     what the decision records (§13.2: nothing changes silently).
-create or replace function decisions_check_phase() returns trigger language plpgsql as $$
+create or replace function decisions_check_phase() returns trigger language plpgsql set search_path = trading, public as $$
 declare p experiment_phases%rowtype;
 begin
   select * into p from experiment_phases where id = new.experiment_phase_id;
@@ -176,7 +177,7 @@ end $$;
 create trigger decisions_check_phase before insert on decisions for each row execute function decisions_check_phase();
 
 -- (f) Forecast resolutions must resolve against the frozen entry contract, starting at fill_at (§7.4, §8.9).
-create or replace function forecast_resolutions_check_contract() returns trigger language plpgsql as $$
+create or replace function forecast_resolutions_check_contract() returns trigger language plpgsql set search_path = trading, public as $$
 declare d decisions%rowtype;
 begin
   select * into d from decisions where decision_id = new.decision_id;
@@ -197,7 +198,7 @@ end $$;
 create trigger forecast_resolutions_check_contract before insert on forecast_resolutions for each row execute function forecast_resolutions_check_contract();
 
 -- (g) Shadow portfolios never touch the broker: broker fills are only legal on the broker-facing portfolio.
-create or replace function fills_check_broker_portfolio() returns trigger language plpgsql as $$
+create or replace function fills_check_broker_portfolio() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   if new.fill_source = 'broker' and not exists (select 1 from portfolios where id = new.portfolio_id and touches_broker) then
     raise exception 'SHADOW_PORTFOLIO_BROKER_FILL: broker fills are only legal on the broker-facing portfolio' using errcode = 'check_violation';
@@ -207,7 +208,7 @@ end $$;
 create trigger fills_check_broker_portfolio before insert on fills for each row execute function fills_check_broker_portfolio();
 
 -- (h) Cash ledger balances must chain: balance_after = previous balance + amount, per portfolio (ADR-0002 projection check).
-create or replace function cash_ledger_check_chain() returns trigger language plpgsql as $$
+create or replace function cash_ledger_check_chain() returns trigger language plpgsql set search_path = trading, public as $$
 declare prev numeric(14,6);
 begin
   select balance_after_usd into prev from cash_ledger where portfolio_id = new.portfolio_id order by id desc limit 1;

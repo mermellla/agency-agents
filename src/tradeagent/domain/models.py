@@ -4,15 +4,16 @@ These models are the contract between modules (docs/phase0/03-architecture.md). 
 database cannot express (durations, derived fields) and mirror the constraints the database does express so that
 a violation is caught before a round-trip.
 """
+
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from tradeagent.domain.enums import (
     BudgetBucket,
@@ -50,7 +51,7 @@ CLIENT_ORDER_ID_MAX = 128
 
 
 def utcnow() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 class Strict(BaseModel):
@@ -94,7 +95,7 @@ class Bar(Frozen):
     stamp: SourceStamp
 
     @model_validator(mode="after")
-    def _availability_semantics(self) -> "Bar":
+    def _availability_semantics(self) -> Bar:
         if self.retrievable_at < self.end:
             raise ValueError("retrievable_at must not precede the bar end (§5.1 availability semantics)")
         if self.low > self.high or not (self.low <= self.open <= self.high and self.low <= self.close <= self.high):
@@ -113,7 +114,7 @@ class Quote(Frozen):
     stamp: SourceStamp
 
     @model_validator(mode="after")
-    def _crossed(self) -> "Quote":
+    def _crossed(self) -> Quote:
         if self.bid <= 0 or self.ask <= 0:
             raise ValueError("non-positive quote")
         return self
@@ -187,7 +188,7 @@ class Candidate(Strict):
     iex_quote_age_sec_at_order: int | None = None
 
     @model_validator(mode="after")
-    def _observed_after_bar(self) -> "Candidate":
+    def _observed_after_bar(self) -> Candidate:
         if self.signal_observed_at < self.signal_bar_time:
             raise ValueError("signal_observed_at precedes the bar time (§5.1)")
         return self
@@ -214,7 +215,7 @@ class ScanResult(Strict):
     signals_unavailable: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _embargo(self) -> "ScanResult":
+    def _embargo(self) -> ScanResult:
         if self.bars_end_at > self.started_at:
             raise ValueError("bars_end_at must be ≤ scan start (delayed SIP embargo, §5.1)")
         if self.scanner_completed_at < self.started_at:
@@ -293,16 +294,25 @@ class Proposal(Frozen):
     no_action_reason: str | None = None
 
     @model_validator(mode="after")
-    def _schema_rules(self) -> "Proposal":
+    def _schema_rules(self) -> Proposal:
         if self.decision == DecisionType.NO_ACTION and not self.no_action_reason:
             raise ValueError("no_action_reason is required when decision = NO_ACTION (§7.6)")
-        if self.earnings_in_window and (self.earnings_plan in (None, EarningsPlan.N_A) or not self.earnings_plan_reason):
+        if self.earnings_in_window and (
+            self.earnings_plan in (None, EarningsPlan.N_A) or not self.earnings_plan_reason
+        ):
             raise ValueError("earnings_plan with reason is required when earnings_in_window (§7.6)")
         if self.decision in (DecisionType.BUY, DecisionType.ADD):
             missing = [
                 n
-                for n in ("ticker", "proposed_notional", "target_price", "invalidation_price", "time_stop_at",
-                          "expected_holding_period", "probability")
+                for n in (
+                    "ticker",
+                    "proposed_notional",
+                    "target_price",
+                    "invalidation_price",
+                    "time_stop_at",
+                    "expected_holding_period",
+                    "probability",
+                )
                 if getattr(self, n) is None
             ]
             if missing:
@@ -331,7 +341,7 @@ class Timeline(Strict):
         return self.risk_validation_completed_at
 
     @model_validator(mode="after")
-    def _monotone(self) -> "Timeline":
+    def _monotone(self) -> Timeline:
         if self.order_eligible_at and self.signal_observed_at and self.order_eligible_at < self.signal_observed_at:
             raise ValueError("order_eligible_at < signal_observed_at violates §8.9")
         if self.fill_at and self.order_eligible_at and self.fill_at < self.order_eligible_at:
@@ -342,7 +352,7 @@ class Timeline(Strict):
 class ForecastContract(Frozen):
     """§7.4: frozen at entry; resolution always uses these, never the working levels."""
 
-    forecast_event: Literal["TARGET_BEFORE_INVALIDATION_OR_TIME_STOP"] = FORECAST_EVENT
+    forecast_event: Literal["TARGET_BEFORE_INVALIDATION_OR_TIME_STOP"] = "TARGET_BEFORE_INVALIDATION_OR_TIME_STOP"
     target_price_at_entry: Decimal
     invalidation_price_at_entry: Decimal
     time_stop_at_entry: datetime
@@ -396,7 +406,7 @@ class Decision(Strict):
     cost_usd: Decimal = Decimal("0")
 
     @model_validator(mode="after")
-    def _rules(self) -> "Decision":
+    def _rules(self) -> Decision:
         if self.proposal.decision in (DecisionType.SHORT, DecisionType.COVER) and not (
             self.status == DecisionStatus.REJECTED and self.reject_code == RejectCode.REJECTED_ACCOUNT_INELIGIBLE
         ):
@@ -409,8 +419,13 @@ class Decision(Strict):
             and self.forecast is None
         ):
             raise ValueError("validated entries must carry the frozen forecast contract (§7.4)")
-        for v in (self.prompt_version, self.exclusion_list_version, self.config_version, self.scanner_version,
-                  self.qb_rules_version):
+        for v in (
+            self.prompt_version,
+            self.exclusion_list_version,
+            self.config_version,
+            self.scanner_version,
+            self.qb_rules_version,
+        ):
             if not v:
                 raise ValueError("version fields are non-null on every decision (§10.2)")
         return self
@@ -459,7 +474,7 @@ class OrderRequest(Strict):
         return client_order_id(self.decision_id, self.leg_seq)
 
     @model_validator(mode="after")
-    def _rules(self) -> "OrderRequest":
+    def _rules(self) -> OrderRequest:
         if (self.qty is None) == (self.notional is None):
             raise ValueError("exactly one of qty / notional (Alpaca rule)")
         if self.purpose == OrderPurpose.ENTRY and (self.side != OrderSide.BUY or self.extended_hours):
@@ -507,10 +522,13 @@ class Fill(Frozen):
         return self.qty * self.price
 
     @model_validator(mode="after")
-    def _rules(self) -> "Fill":
+    def _rules(self) -> Fill:
         if self.source == FillSource.RECONSTRUCTED and self.reconstruction_basis is None:
             raise ValueError("reconstructed fills state their basis (§12)")
-        if self.reconstruction_basis in (ReconstructionBasis.ASK, ReconstructionBasis.BID) and self.half_spread_estimate:
+        if (
+            self.reconstruction_basis in (ReconstructionBasis.ASK, ReconstructionBasis.BID)
+            and self.half_spread_estimate
+        ):
             raise ValueError("never add a half-spread to an ask/bid fill (§12, D-54)")
         if self.source == FillSource.BROKER and not self.broker_fill_id:
             raise ValueError("broker fills carry the broker activity id (§15 idempotency)")
@@ -573,7 +591,7 @@ class ForecastResolution(Frozen):
     ambiguous_reason: str | None = None
 
     @model_validator(mode="after")
-    def _rules(self) -> "ForecastResolution":
+    def _rules(self) -> ForecastResolution:
         if self.outcome == ForecastOutcome.AMBIGUOUS and not self.ambiguous_reason:
             raise ValueError("AMBIGUOUS needs a reason")
         if self.outcome in (ForecastOutcome.TARGET, ForecastOutcome.INVALIDATION) and self.touched_at is None:
@@ -623,26 +641,33 @@ class ClosedTrade(Frozen):
 
 
 class BrokerPolicy(Frozen):
-    """§8.10 — written to Alpaca's account configuration and verified on every boot."""
+    """§8.10 as amended (OI-02/OI-03 accepted): five fields written to Alpaca's account configuration and verified on
+    every boot. Literal types make it impossible to construct a looser policy in code."""
 
     max_margin_multiplier: Literal["1"] = "1"
     no_shorting: Literal[True] = True
     max_options_trading_level: Literal[0] = 0
-    # Proposed additions (OI-03); not enforced until the owner accepts the amendment.
-    fractional_trading: bool | None = None
-    disable_overnight_trading: bool | None = None
+    fractional_trading: Literal[True] = True
+    disable_overnight_trading: Literal[True] = True
 
-    def matches(self, observed: "AccountConfiguration") -> bool:
-        ok = (
-            observed.max_margin_multiplier == self.max_margin_multiplier
+    def matches(self, observed: AccountConfiguration) -> bool:
+        return (
+            observed.max_margin_multiplier == "1"
             and observed.no_shorting is True
             and observed.max_options_trading_level == 0
+            and observed.fractional_trading is True
+            and observed.disable_overnight_trading is True
         )
-        if self.fractional_trading is not None:
-            ok = ok and observed.fractional_trading == self.fractional_trading
-        if self.disable_overnight_trading is not None:
-            ok = ok and observed.disable_overnight_trading == self.disable_overnight_trading
-        return ok
+
+    def as_patch(self) -> dict[str, object]:
+        """Body for PATCH /v2/account/configurations."""
+        return {
+            "max_margin_multiplier": "1",
+            "no_shorting": True,
+            "max_options_trading_level": 0,
+            "fractional_trading": True,
+            "disable_overnight_trading": True,
+        }
 
 
 class AccountConfiguration(Frozen):
@@ -696,5 +721,8 @@ def context_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-__all__ = [n for n in dir() if n[:1].isupper() or n in ("client_order_id", "context_hash", "utcnow", "FORECAST_EVENT",
-                                                      "CLIENT_ORDER_ID_MAX")]
+__all__ = [
+    n
+    for n in dir()
+    if n[:1].isupper() or n in ("client_order_id", "context_hash", "utcnow", "FORECAST_EVENT", "CLIENT_ORDER_ID_MAX")
+]

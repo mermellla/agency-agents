@@ -2,6 +2,7 @@
 
 Keep the two in lock-step: tests/test_db_invariants.py::test_enums_match_database compares them.
 """
+
 from __future__ import annotations
 
 from enum import StrEnum

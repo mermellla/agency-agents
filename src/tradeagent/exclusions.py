@@ -2,6 +2,7 @@
 
 Used at both enforcement points (scanner prefilter and risk desk). The LLM is never the enforcement layer.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ class ExclusionScreen:
     universe_exclude_sics: dict[int, str]
 
     @classmethod
-    def from_config(cls, exclusions: dict[str, Any], sic_backstop: dict[str, Any]) -> "ExclusionScreen":
+    def from_config(cls, exclusions: dict[str, Any], sic_backstop: dict[str, Any]) -> ExclusionScreen:
         deny_sics: dict[int, str] = {}
         for category, rows in sic_backstop.get("deny", {}).items():
             for row in rows:
@@ -28,10 +29,14 @@ class ExclusionScreen:
         return cls(
             version=f"{exclusions['version']}+sic:{sic_backstop['version']}",
             denylist={e["symbol"].upper(): e for e in exclusions.get("deny", [])},
-            allowlist={e["symbol"].upper() if isinstance(e, dict) else str(e).upper() for e in exclusions.get("allow", [])},
+            allowlist={
+                e["symbol"].upper() if isinstance(e, dict) else str(e).upper() for e in exclusions.get("allow", [])
+            },
             deny_sics=deny_sics,
             default_deny_sics={int(r["sic"]): r["title"] for r in sic_backstop.get("default_deny", [])},
-            universe_exclude_sics={int(r["sic"]): r.get("reason", r["title"]) for r in sic_backstop.get("universe_exclude", [])},
+            universe_exclude_sics={
+                int(r["sic"]): r.get("reason", r["title"]) for r in sic_backstop.get("universe_exclude", [])
+            },
         )
 
     def screen(self, symbol: str, sic: int | None) -> tuple[UniverseStatus, str | None]:

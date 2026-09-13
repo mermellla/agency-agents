@@ -1,5 +1,10 @@
 # Open issues: contradictions, impossible requirements, API assumptions, underspecified behaviour
 
+**Status after the owner's Phase 0 review (2026-09-13):** OI-02, OI-03, OI-05 accepted (`docs/spec/AMENDMENTS.md`);
+OI-06 resolved from FINRA's SR-FINRA-2024-019 schedule; OI-01 stays open for the Slice 3 probe; OI-04, OI-07,
+OI-08–OI-12 are presented for decision in `09-owner-decisions.md`. New: OI-14 (capital reservation → ADR-0021) and
+OI-15 (Supabase exposure → ADR-0022), both closed by design and tests.
+
 Each item states the evidence, the impact, and the **smallest compliant amendment** proposed. Nothing here has been
 silently reinterpreted: where the package had to pick a value to proceed, the value is marked `(proposed)` in
 `config/risk_policy.yaml` and listed under "Decision needed". Verification sources and dates are in
@@ -18,7 +23,7 @@ single fractional Day stop on the paper account. Contingency if rejected: the ri
 lots (price ≤ position size), which at $500 means a ≤ $150 share price cap; §8.3 would then need a v2.4 line.
 **Decision needed:** none now; the owner is informed of the contingency.
 
-### OI-02 — Extended-hours scope: the overnight session (underspecified)
+### OI-02 — Extended-hours scope: the overnight session (underspecified) — **ACCEPTED (A-02)**
 **Evidence.** Alpaca now offers an overnight session 8 pm–4 am ET on Blue Ocean ATS (V-03, V-04), and `extended_hours=true`
 Day limit orders are eligible for it. §4.3 says "extended hours for exits only" and its guard is anchored to an IEX quote,
 but IEX does not trade overnight, so the guard cannot be satisfied there.
@@ -26,35 +31,36 @@ but IEX does not trade overnight, so the guard cannot be satisfied there.
 (16:00–20:00 ET) sessions only; overnight is excluded. Implemented provisionally as
 `extended_hours.sessions_allowed_for_exits: [premarket, after_hours]` and enforced by the config validator.
 
-### OI-03 — `BROKER_POLICY` should include two more account-configuration fields (API verify → amendment)
+### OI-03 — `BROKER_POLICY` should include two more account-configuration fields — **ACCEPTED (A-01)**
 **Evidence.** The account-configuration object (V-06) exposes `fractional_trading` and `disable_overnight_trading` in
 addition to the three fields §8.10 names. The `dtbp_check`/`pdt_check` fields no longer exist (PDT retired, V-01).
 **Proposal (amend §8.10 / Appendix B).** `BROKER_POLICY` adds `fractional_trading = true` (the strategy needs it) and
 `disable_overnight_trading = true` (consistent with OI-02). Modelled as optional fields on `BrokerPolicy` that are not
 enforced until accepted.
 
-### OI-04 — Seven SIC codes in §4.4 do not exist in EDGAR (impossible as written)
+### OI-04 — Seven SIC codes in §4.4 do not exist in EDGAR (impossible as written) — **mapping in 09-owner-decisions.md §A**
 **Evidence.** V-08: 1241, 1321, 3483, 3489, 3795, 4612, 4613 are absent from the EDGAR SIC list; 3480 covers all
 ordnance and ammunition; 4610 is the petroleum pipeline code.
 **Proposal (amend §4.4 item 2).** Fossil: 1220, 1221, 1311, 1381, 1382, 1389, 2911, 4610, 4922. Defense: 3480, 3760.
 Default-deny additions 3730, 3533, 6792 and review-list addition 2990 as in ADR-0006. Already reflected in
 `config/sic_backstop.yaml`; the owner accepts or trims.
 
-### OI-05 — Whole-share lots whose GTC stop was cancelled for an extended-hours exit are unprotected next session (gap)
+### OI-05 — Whole-share lots whose GTC stop was cancelled for an extended-hours exit are unprotected next session — **ACCEPTED (A-03)**
 **Evidence.** §14 rule 3 cancels sibling orders before an extended-hours exit; §8.3 re-arms only *fractional* lots.
 An unfilled Day extended-hours limit leaves a whole-share lot with no GTC stop at the next open.
 **Proposal (amend §8.3).** The pre-open job re-arms **any** lot without a live protective order, and the post-open
 verification covers all lots. ADR-0013 implements it that way.
 
-### OI-06 — FINRA TAF rate conflict (API/regulatory verify)
+### OI-06 — FINRA TAF rate conflict — **RESOLVED (A-06)**
 **Evidence.** FINRA's Schedule A page as rendered on 2026-09-13 shows $0.000166/share, max $8.30; broker fee pages and
 FINRA's SR-FINRA-2024-019 fee-adjustment schedule report $0.000195 / $9.79 effective 2026-01-01 (V-10). The SEC
 Section 31 rate is unambiguous: $20.60 per million from 2026-04-04 (V-09).
-**Proposal.** `config/fees.yaml` carries the higher TAF rate with the conflict noted; the owner confirms against the
-current Schedule A and supplies the CAT fee rate. Amounts at $500 scale are cents; the two P&L views are unaffected in
-practice, but the schedule is part of `config_version`.
+**Resolution.** FINRA's SR-FINRA-2024-019 fee-adjustment schedule (SEC Release 34-101696, approved January 2025) gives
+2025 $0.000166/$8.30, 2026 $0.000195/$9.79, 2027 $0.000232/$11.61, 2028 $0.000240/$12.05. The rendered Schedule A page
+lags the filing. `config/fees.yaml` now holds effective-dated schedules and `tradeagent/fees.py` selects the row by charge
+date (tested). CAT fee row still needs a rate from the owner.
 
-### OI-07 — Seed denylist scope calls (owner review required by §4.4)
+### OI-07 — Seed denylist scope calls (owner review required by §4.4) — **review table in 09-owner-decisions.md §B**
 20 entries are flagged `needs_owner_review` (conglomerates BA, RTX, GE, HON, TXT; defense IT/services LDOS, CACI, SAIC,
 BAH; PLTR, AXON, OLN, and names affected by recent mergers). Decision: keep, drop, or add per D-14.
 
@@ -84,6 +90,14 @@ and `TRIAGE_MIN_INTERVAL_MIN = 30` (ADR-0008).
 the *quant baseline's* `order_eligible_at` for that scan (scanner completion + validation), so forward returns are
 comparable with QB entries and never look ahead of what any portfolio could have done. Alternative: anchor at
 `signal_observed_at` (earlier, slightly optimistic).
+
+### OI-14 — Concurrent BUY validations could over-commit virtual cash — **CLOSED by ADR-0021**
+Found in the owner's review. A ledger CHECK only sees money at fill time; two decisions validated together could both pass.
+Resolved by atomic per-portfolio reservation under an advisory lock (migration 0009) with a two-connection race test.
+
+### OI-15 — Supabase Data API / Storage exposure — **CLOSED by ADR-0022**
+Trading state moved to schema `trading` (not exposed), client roles revoked, RLS deny-by-default, dedicated worker role
+without DELETE, private bucket, boot checks. Tested with locally created `anon`/`authenticated` roles.
 
 ## B. Verified — no change needed, recorded for the file
 - **PDT retirement 2026-06-04 and Alpaca's removal of PDT logic** — confirmed (V-01). §1/§3.1 stand.
@@ -127,9 +141,10 @@ comparable with QB entries and never look ahead of what any portfolio could have
 - §17 "virtual-cash cap test against a paper account whose multiplier and balance exceed the experiment's": the paper
   account default is $100k at 2x/4x, so this test is natural in Slice 3.
 
-## D. Repository placement (process, not spec)
+## D. Repository placement (process, not spec) — OI-13, **actioned**
 This package was placed in `mermellla/agency-agents`, a fork of a public collection of agent-persona Markdown files
 with its own CI (`lint-agents.yml`, scoped to the persona directories, so it does not run on these files). The trading
-system now lives alongside under `docs/`, `config/`, `supabase/`, `src/`, `tests/`. Recommendation: move it to a
-dedicated repository before Slice 1 so Railway deploys and secrets are isolated from unrelated history (§11 isolation
-principle). The package is self-contained and moves as a directory tree.
+system now lives alongside under `docs/`, `config/`, `supabase/`, `src/`, `tests/`. The package was rebuilt as a standalone repository with fresh history (Phase 0 checkpoint commit + review-round commit),
+re-verified there (migrations, tests, ruff, mypy, detect-secrets), and delivered as a git bundle and as the orphan branch
+`trading-agent-clean`; the GitHub App in this session is not permitted to create repositories, so the owner pushes it to a
+new private repository (`docs/phase0/10-repository-move.md`).

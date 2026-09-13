@@ -7,13 +7,13 @@
 | 1 | Finalized spec under `docs/spec/` | `docs/spec/SPEC-v2.3.md`, `docs/spec/README.md` |
 | 2 | Requirements-to-implementation traceability matrix | `01-traceability-matrix.md` |
 | 3 | Contradictions, impossible requirements, API assumptions to verify, underspecified behaviour | `02-open-issues.md` (OI-01…OI-16) and `08-api-verification-log.md` (V-01…V-18) |
-| 4 | ADRs required by Appendix C | `docs/adr/` — ADR-0001…0018 (one per item) + ADR-0019 (versioning/phases) + ADR-0020 (LIVE lockout) |
+| 4 | ADRs required by Appendix C | `docs/adr/` — ADR-0001…0018 (one per item) + ADR-0019 (versioning/phases) + ADR-0020 (LIVE lockout) + ADR-0021 (capital reservation) + ADR-0022 (Supabase security) |
 | 5 | Module/package architecture | `03-architecture.md` |
 | 6 | Major domain interfaces and typed models | `src/tradeagent/domain/{enums,models}.py`, `src/tradeagent/interfaces/__init__.py`; inventory in `04-interfaces.md` |
 | 7 | Supabase/Postgres schema | `05-schema.md` |
-| 8 | Initial repo-tracked migrations | `supabase/migrations/2026091300000{1..8}_*.sql` (42 tables, 33 enums, 12 trigger functions; applied clean on PostgreSQL 16) |
+| 8 | Initial repo-tracked migrations | `supabase/migrations/` (nine files; 38 tables, 32 enums, 21 functions in schema `trading`; applied clean on PostgreSQL 16) + `supabase/migrations_deferred/` (3 tables deferred to S7/S9) |
 | 9 | Test plan mapping every §17 deliverable and invariant to tests | `06-test-plan.md` |
-| 10 | Tests writable before implementation | `06-test-plan.md` column "Pre-impl"; 64 already written and passing in `tests/` |
+| 10 | Tests writable before implementation | `06-test-plan.md` column "Pre-impl"; 78 already written and passing in `tests/`; ruff, mypy --strict, detect-secrets clean |
 | 11 | Implementation sequence as vertical slices | `07-implementation-sequence.md` |
 
 Also produced: versioned config seeds in `config/` (risk policy, fees, SIC backstop, seed denylist, scanner weights,
@@ -25,7 +25,11 @@ QB-1.0 rules, phase-change record) and the Python package skeleton (`pyproject.t
 - No credentials anywhere; no network calls in code or tests.
 - No LIVE path: refused by config, schema, and state machine (ADR-0020).
 
+## Owner review round 1 (2026-09-13)
+Accepted amendments are logged in `docs/spec/AMENDMENTS.md` (A-01…A-06). Decisions still requested are in
+`09-owner-decisions.md` (SIC mapping, denylist review, defaults table, schema-rent audit). The clean-repository move is
+described in `10-repository-move.md`.
+
 ## Status of the verification work
 18 external assumptions were checked against current documentation on 2026-09-13 (`08-api-verification-log.md`).
-Three require owner decisions (OI-04 SIC codes, OI-06 FINRA TAF rate, OI-02/OI-03 extended-hours and broker-policy
-amendments); two require an empirical probe against the paper API in Slice 3 (fractional pre-open stops, ADR-0013).
+OI-06 is resolved and OI-02/03/05 are accepted; OI-04 and OI-07 await the owner's policy call; OI-01 needs the Slice 3 paper probe (ADR-0013).

@@ -12,7 +12,7 @@ LIVE stays in the type system and the schema (so the design is complete) and is 
 2. **Broker factory:** the only implementations are `NullBroker` (DRY_RUN; observe-only reads with paper keys for the
    pre-open probe) and `AlpacaPaperBroker` (base URL `https://paper-api.alpaca.markets` hard-coded). No class, string,
    or env-var read for the live base URL or `ALPACA_LIVE_KEY/SECRET` exists in the codebase; a test greps for them.
-3. **Database:** `experiments.live_locked_out` CHECK refuses `execution_mode = 'LIVE'`; the order state machine refuses the
+3. **Database:** `experiments.live_locked_out` CHECK (schema `trading`, ADR-0022) refuses `execution_mode = 'LIVE'`; the order state machine refuses the
    LIVE-only `PENDING_APPROVAL` state (`LIVE_LOCKED_OUT`). Both are tested.
 4. **Approval endpoint (Vercel):** not deployed in this phase; when built it can only write `approvals` rows and has no
    broker credentials.

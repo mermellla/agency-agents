@@ -41,13 +41,15 @@ persistence`; `ops` composes everything. No module imports an adapter concretely
 
 ## Runtime processes and jobs (single worker, in-process scheduler on the Alpaca calendar)
 ```
-boot ─► load settings (LIVE refused) ─► migrations current? ─► version drift → phase (ADR-0019) ─► verify projections
+boot ─► load settings (LIVE refused) ─► migrations current? ─► exposure checks: Data API 401/404, bucket private (ADR-0022)
+     ─► version drift → phase (ADR-0019) ─► verify projections
      ─► broker policy (§8.10, PAPER) ─► reconciliation (§8.6) ─► clear/raise halts ─► scheduler.run_forever()
 
 per session (ET):
  09:05 corporate actions → lots        09:10 stop re-arm (ADR-0013)        09:31/09:33 post-open stop verification
  09:2x pre-open scan on prior-day data (regime, universe, candidates)     10:00+ intraday scans every 15 min
- each scan: exits/reviews first ─► triage (if thresholds) ─► decision ─► critique ─► finalize ─► risk desk ─► execute
+ each scan: exits/reviews first ─► triage (if thresholds) ─► decision ─► critique ─► finalize ─► risk desk
+            ─► [lock portfolio → reserve capital → create order] atomically (ADR-0021) ─► execute
  continuous: early-warning stream on the focus set (ADR-0014) → triggered reviews; broker event polling → ledger
  T+15 min after each simulated order: fill reconstruction (§8.9)          16:05 daily reviews (triage model)
  after close: fees & dividends, candidate_outcomes, forecast resolution, closed_trades, benchmarks mark, digest email
@@ -93,6 +95,8 @@ by the config loader and by the database.
 - Railway project `trading-agent` (worker service, `python -m tradeagent.cli run`), env vars: `EXECUTION_MODE`,
   `ALPACA_PAPER_KEY/SECRET`, `ANTHROPIC_API_KEY`, `FINNHUB_API_KEY`, `RESEND_API_KEY`, `DATABASE_URL`,
   `SUPABASE_URL/SERVICE_ROLE_KEY`, `EDGAR_USER_AGENT`, `RAILWAY_GIT_COMMIT_SHA` (auto).
-- Supabase project `trading-agent`: apply `supabase/migrations/` with the Supabase CLI; private Storage bucket
-  `decision-context`; RLS enabled on every table with no policies (service role only).
+- Supabase project `trading-agent`: apply `supabase/migrations/` with the Supabase CLI (as the schema owner); leave schema
+  `trading` **out** of the Data API exposed-schemas list; `alter role trading_worker login password '…'` and put that URL in
+  Railway `DATABASE_URL`; private Storage bucket `decision-context` (ADR-0022). The worker never holds the service-role key
+  for data access.
 - Vercel project `trading-agent-approvals`: not deployed until the LIVE slice.

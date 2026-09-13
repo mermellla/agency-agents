@@ -7,8 +7,8 @@ issue. **Tests**: IDs from `06-test-plan.md` (T-xx) or existing test functions.
 ## §2 Non-negotiable engineering controls
 | ID | Requirement | Impl | ADR | Tests | Status |
 |---|---|---|---|---|---|
-| R-2.1 | Notional capped at virtual cash, broker buying power ignored | `RiskDesk.validate` step "virtual-cash"; `cash_ledger.balance_after_usd >= 0` CHECK + chain trigger | 0002 | test_cash_ledger_never_negative_and_chains; T-01 | P0 schema, S4 desk |
-| R-2.2 | No margin, no shorting; broker config enforced and verified on boot | `BrokerPolicyEnforcer`; `BrokerPolicy` model literal-typed to 1x/no-short/level 0; `broker_policy_checks` | — | test_broker_policy_match; T-13 | P0 model, S3 |
+| R-2.1 | Notional capped at virtual cash, broker buying power ignored | `orders_reserve_capital` (atomic reservation under a per-portfolio lock, A-04); `cash_ledger.balance_after_usd >= 0` CHECK + chain trigger; `RiskDesk.validate` | 0002, 0021 | tests/test_reservation.py; test_cash_ledger_never_negative_and_chains; T-01 | P0 schema, S4 desk |
+| R-2.2 | No margin, no shorting; broker config enforced and verified on every boot (five fields, A-01) | `BrokerPolicyEnforcer`; `BrokerPolicy` literal-typed (1x, no-short, options 0, fractional on, overnight off); `broker_policy_checks` | 0013 | test_broker_policy_match; test_spec_defaults; T-13 | P0 model, S3 |
 | R-2.3 | Unique `client_order_id`, DB-enforced | `orders.client_order_id UNIQUE`; `client_order_id()` deterministic | 0002 | test_client_order_id_unique, test_client_order_id_deterministic_and_bounded | P0 |
 | R-2.4 | No malformed orders | `OrderRequest` validators; `orders` CHECKs; `orders_check_decision` | 0002 | test_order_request_rules, test_entry_extended_hours_rejected | P0 |
 | R-2.5 | Single U.S. common stocks only; exclusion list enforced | ADR-0005 membership test; `ExclusionScreen` at scanner and desk | 0005, 0006 | tests/test_exclusions.py; T-06 | P0 screen, S2 universe |
@@ -114,7 +114,7 @@ issue. **Tests**: IDs from `06-test-plan.md` (T-xx) or existing test functions.
 |---|---|---|---|---|---|
 | R-9.1 | $10/month prorated daily; two buckets | `budget_ledger`; `budget.*` (proration rule OI-09) | 0004 | T-05 | P0 schema, S4 |
 | R-9.2 | Every LLM call records model/tokens/cost; attributed to decision and trade | `llm_calls`; `closed_trades.llm_cost_usd` | 0004 | T-25 | P0 schema |
-| R-9.3 | Cost categories per trade and period | `closed_trades.*_usd`, `cost_periods`, `fees` | 0012 | T-29 | P0 schema |
+| R-9.3 | Cost categories per trade and period | `closed_trades.*_usd`, `fees` (`cost_periods` deferred to S7); effective-dated `config/fees.yaml` + `tradeagent/fees.py` (A-06) | 0012 | tests/test_fees.py; T-29 | P0 |
 | R-9.4 | Two P&L views together | `closed_trades.net_return_pct` vs `net_return_after_computational_costs_pct`; report | 0012 | T-29 | P0 schema, S7 |
 | R-9.5 | Paper simulator lacks fees/dividends → ledger applies them | fee engine on every sell fill; dividends from corporate actions | 0012 | T-33 | S4 |
 
@@ -131,7 +131,7 @@ issue. **Tests**: IDs from `06-test-plan.md` (T-xx) or existing test functions.
 | ID | Requirement | Impl | ADR | Tests | Status |
 |---|---|---|---|---|---|
 | R-11.1 | Separate Railway/Supabase/Vercel projects | deployment notes in `03-architecture.md` | 0001 | — | owner action |
-| R-11.2 | Secrets only in Railway env | `load_settings` reads no secrets; adapters read env at construction | 0001 | T-20 | P0 |
+| R-11.2 | Secrets only in Railway env; trading state unreachable by client roles | `load_settings` reads no secrets; schema `trading` unexposed, revokes, RLS, `trading_worker` (A-05) | 0001, 0022 | test_no_live_or_secret_strings; tests/test_security.py | P0 |
 | R-11.3 | Mode switch; LIVE prerequisites | `ExecutionConfig`; lockout | 0020 | test_live_refused_by_env | P0 |
 | R-11.4 | In-process scheduler on the Alpaca calendar | `Scheduler`, `TradingCalendar` | 0001 | T-35 | S2 |
 | R-11.5 | Email channel: digest, alerts, approvals | `Notifier`; `notifications` | 0010 | T-36 | S4 |

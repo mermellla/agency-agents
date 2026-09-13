@@ -1,6 +1,9 @@
 -- 0001: extensions, enums, shared trigger functions.
 -- Spec v2.3 §10. Design decisions: ADR-0002 (ledger style), ADR-0019 (versioning), ADR-0020 (mode lockout).
-create extension if not exists "pgcrypto";
+-- ADR-0022: all trading state lives in a dedicated schema that is NOT exposed through the Supabase Data API.
+-- gen_random_uuid() is core PostgreSQL (13+); no extension is required.
+create schema if not exists trading;
+set search_path = trading, public;
 
 -- ---------- enums ----------
 create type execution_mode as enum ('DRY_RUN', 'PAPER', 'LIVE');
@@ -84,20 +87,20 @@ create type universe_status as enum ('eligible', 'excluded_universe', 'excluded_
 -- ---------- shared trigger functions ----------
 
 -- §10.2 "No physical deletes on decisions, orders, fills, or cash ledger" (applied more widely, ADR-0002).
-create or replace function forbid_delete() returns trigger language plpgsql as $$
+create or replace function forbid_delete() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   raise exception 'DELETE_FORBIDDEN: physical deletes are not allowed on %', tg_table_name
     using errcode = 'restrict_violation';
 end $$;
 
 -- Append-only tables: no updates at all.
-create or replace function forbid_update() returns trigger language plpgsql as $$
+create or replace function forbid_update() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   raise exception 'UPDATE_FORBIDDEN: % is append-only', tg_table_name
     using errcode = 'restrict_violation';
 end $$;
 
-create or replace function set_updated_at() returns trigger language plpgsql as $$
+create or replace function set_updated_at() returns trigger language plpgsql set search_path = trading, public as $$
 begin
   new.updated_at := now();
   return new;
