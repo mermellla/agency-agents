@@ -11,11 +11,12 @@ execution:
   live_approval_until: null
   live_approval_first_n_orders: null
   broker_policy_enforce: true
-  broker_policy:                   # §8.10; written to Alpaca account configuration and verified on every boot
-    max_margin_multiplier: "1"     # Alpaca accepts "1" | "2" | "4"
+  broker_policy:                   # §8.10 as amended (OI-02/OI-03 accepted 2026-09-13); written to Alpaca account
+    max_margin_multiplier: "1"     #   configuration and verified on EVERY boot. Alpaca accepts "1" | "2" | "4".
     no_shorting: true
     max_options_trading_level: 0
-    # Proposed additions (open issue OI-03): fractional_trading: true, disable_overnight_trading: true
+    fractional_trading: true
+    disable_overnight_trading: true
 
 capital:
   experiment_equity_start: 500.00

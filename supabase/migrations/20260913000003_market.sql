@@ -1,4 +1,5 @@
 -- 0003: market group — §10.1 "Market", §5.2 source registry, §6 scanner outputs, D-50 candidate outcomes.
+set search_path = trading, public;
 
 create table instruments (
   symbol           text primary key,

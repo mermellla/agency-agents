@@ -5,6 +5,7 @@
 - Refuses to construct settings for EXECUTION_MODE=LIVE (ADR-0020). This is the first of several lockouts; the
   broker factory and the database (`experiments.live_locked_out`) are the others.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -45,6 +46,8 @@ class BrokerPolicyConfig(BaseModel):
     max_margin_multiplier: str = "1"
     no_shorting: bool = True
     max_options_trading_level: int = 0
+    fractional_trading: bool = True
+    disable_overnight_trading: bool = True
 
 
 class ExecutionConfig(BaseModel):
@@ -57,11 +60,20 @@ class ExecutionConfig(BaseModel):
     broker_policy: BrokerPolicyConfig
 
     @model_validator(mode="after")
-    def _lockout(self) -> "ExecutionConfig":
+    def _lockout(self) -> ExecutionConfig:
         if self.execution_mode == ExecutionMode.LIVE or self.live_enabled:
             raise LiveLockedOut("LIVE execution is not enabled in this codebase (Spec v2.3 §16, ADR-0020)")
-        if self.broker_policy.max_margin_multiplier != "1" or not self.broker_policy.no_shorting or self.broker_policy.max_options_trading_level != 0:
-            raise ValueError("BROKER_POLICY must be 1x / no shorting / options level 0 (§8.10)")
+        bp = self.broker_policy
+        if (
+            bp.max_margin_multiplier != "1"
+            or not bp.no_shorting
+            or bp.max_options_trading_level != 0
+            or not bp.fractional_trading
+            or not bp.disable_overnight_trading
+        ):
+            raise ValueError(
+                "BROKER_POLICY must be 1x / no shorting / options level 0 / fractional on / overnight off (§8.10 as amended)"
+            )
         return self
 
 
@@ -78,7 +90,7 @@ class PositionLimits(BaseModel):
     max_positions: int = Field(ge=1)
 
     @model_validator(mode="after")
-    def _range(self) -> "PositionLimits":
+    def _range(self) -> PositionLimits:
         lo, hi = self.normal_position_range_pct
         if not (0 < lo <= hi <= self.max_single_position_pct):
             raise ValueError("normal_position_range_pct must sit inside (0, max_single_position_pct]")
@@ -125,7 +137,7 @@ class ExtendedHoursConfig(BaseModel):
     sessions_allowed_for_exits: list[str]
 
     @model_validator(mode="after")
-    def _no_overnight(self) -> "ExtendedHoursConfig":
+    def _no_overnight(self) -> ExtendedHoursConfig:
         if "overnight" in self.sessions_allowed_for_exits:
             raise ValueError("overnight session is never allowed (OI-02)")
         return self
@@ -153,7 +165,7 @@ class MarketDataConfig(BaseModel):
     data_upgrade_benefit_factor: float = Field(ge=1)
 
     @model_validator(mode="after")
-    def _plan(self) -> "MarketDataConfig":
+    def _plan(self) -> MarketDataConfig:
         if self.market_data_plan not in ("basic", "algo_trader_plus"):
             raise ValueError("market_data_plan must be basic | algo_trader_plus")
         if self.market_data_plan == "basic" and self.iex_stream_max_symbols > 30:
@@ -253,4 +265,6 @@ def load_settings(config_dir: Path = CONFIG_DIR, env: dict[str, str] | None = No
         exclusion_list_version=f"{exclusions['version']}+sic:{sic['version']}",
         prompt_version=env.get("PROMPT_VERSION"),
     )
-    return Settings(risk=risk, fees=fees, scanner=scanner, qb_rules=qb, exclusions=exclusions, sic_backstop=sic, versions=versions)
+    return Settings(
+        risk=risk, fees=fees, scanner=scanner, qb_rules=qb, exclusions=exclusions, sic_backstop=sic, versions=versions
+    )

@@ -1,22 +1,36 @@
-# Regulatory fee schedule — §9, ADR-0012. Applied by the shadow and paper ledgers on every SELL fill
-# because Alpaca's paper simulator does not model regulatory fees (verified 2026-09-13).
-# Part of config_version. Owner re-verifies each rate against the cited source before PAPER.
-schema_version: 1
-effective_as_of: 2026-09-13
+# Regulatory fee schedules — §9, ADR-0012. Effective-dated data, never constants: the engine picks the row whose
+# effective_from ≤ charge date (the latest such row). Applied by the shadow and paper ledgers on every SELL fill because
+# Alpaca's paper simulator does not model regulatory fees (verified 2026-09-13). Part of config_version.
+schema_version: 2
+verified_on: 2026-09-13
+
 sec_section_31:
-  rate_per_million_usd: 20.60       # covered sales on/after 2026-04-04 (SEC Fee Rate Advisory FY2026; FINRA Info Notice 2026-03-17)
   applies_to: sells
+  unit: per_million_usd_of_covered_sales
   rounding: nearest_cent
-  source: https://www.finra.org/rules-guidance/notices/information-notice-20260317
+  source: "SEC Fee Rate Advisory FY2026 (sec.gov/rules-regulations/fee-rate-advisories/2026-2); FINRA Information Notice 2026-03-17; Federal Register 2026-04233 (2026-03-04)"
+  schedule:
+    - {effective_from: 2025-05-14, rate: 0.00,  note: "FY2025 rate set to $0.00 per million"}
+    - {effective_from: 2026-04-04, rate: 20.60, note: "FY2026 rate; in effect until 60 days after the FY2027 appropriation is enacted"}
+
 finra_taf:
-  rate_per_share: 0.000195          # secondary sources report this rate effective 2026-01-01 …
-  max_per_trade_usd: 9.79           # … but FINRA's rendered Schedule A still showed $0.000166 / $8.30 on 2026-09-13 — UNRESOLVED, see OI-06
   applies_to: sells
+  unit: per_share_with_per_trade_max
   rounding: nearest_cent
-  source: https://www.finra.org/rules-guidance/rulebooks/corporate-organization/section-1-member-regulatory-fees
+  source: "FINRA SR-FINRA-2024-019 fee adjustment schedule (finra.org/rules-guidance/rule-filings/sr-finra-2024-019/fee-adjustment-schedule); SEC Release 34-101696 (approved January 2025); FINRA By-Laws Schedule A §1"
+  schedule:
+    - {effective_from: 2024-01-01, rate_per_share: 0.000166, max_per_trade_usd: 8.30}
+    - {effective_from: 2026-01-01, rate_per_share: 0.000195, max_per_trade_usd: 9.79}
+    - {effective_from: 2027-01-01, rate_per_share: 0.000232, max_per_trade_usd: 11.61}
+    - {effective_from: 2028-01-01, rate_per_share: 0.000240, max_per_trade_usd: 12.05}
+
 cat_fee:
-  rate_per_share: 0.0               # Consolidated Audit Trail fee: Alpaca lists a FEE/CAT activity sub-type; rate to be sourced (OI-06)
   applies_to: both
+  unit: per_share
+  rounding: nearest_cent
+  source: "Consolidated Audit Trail funding model (CAT LLC); Alpaca reports it as activity FEE/CAT. Rate row left empty until the owner supplies the current published rate."
+  schedule: []
+
 broker_commission_usd: 0.0
 market_data_monthly_usd: 0.0        # basic plan
 infrastructure_monthly_usd: null    # owner supplies the prorated marginal Railway/Supabase/Vercel cost (§9)

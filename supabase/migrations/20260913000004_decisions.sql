@@ -1,4 +1,5 @@
 -- 0004: decisions group — §7.6 schema, §7.3 critique, §7.4 forecast contract, §9 cost ledger, §10.4 context retention.
+set search_path = trading, public;
 
 create table data_snapshots (
   id                  uuid primary key default gen_random_uuid(),

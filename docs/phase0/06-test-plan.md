@@ -8,7 +8,8 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 ## §17 deliverables → tests
 | T | Deliverable / invariant (§17, §10.2) | Level | Pre-impl | Test(s) | Slice |
 |---|---|---|---|---|---|
-| T-01 | Virtual-cash cap: order above virtual cash rejected although the broker would accept it | Integration + Paper | partly ✔ (DB `balance_after_usd ≥ 0`) | test_cash_ledger_never_negative_and_chains ✔; `test_risk_desk_virtual_cash_cap` (mock broker reporting $100k BP); paper run in S3 | S4 |
+| T-01 | Virtual-cash cap: order above virtual cash rejected although the broker would accept it | DB ✔ + Integration + Paper | ✔ DB | test_reservation_required_and_bounded ✔ ($600 order on $500 refused at insert); `test_risk_desk_virtual_cash_cap` (mock broker reporting $100k BP); paper run in S3 | S4 |
+| T-01c | Concurrency: two simultaneous BUY validations cannot collectively reserve more than available; reservation released on cancel/reject/expiry, converted on fill (ADR-0021) | DB | ✔ | tests/test_reservation.py (7) incl. test_concurrent_buys_cannot_over_reserve ✔ | P0 |
 | T-02 | Position limits 40 / 10–30 / 5; overfill guard | Unit | yes | `test_sizing_limits`, `test_overfill_buffer_whole_share` | S4 |
 | T-03 | Horizon bounds and latency floor rejections | Unit | yes | `test_horizon_bounds`, `test_latency_floor_rejects_under_30min` | S4 |
 | T-04 | Executed order never differs from validated decision; idempotent resubmission | DB + Unit | ✔ | test_sell_entry_order_forbidden ✔, test_order_eligibility_must_match_decision ✔; `test_broker_submit_idempotent` | S3 |
@@ -29,6 +30,8 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 | T-18 | Early-warning stream: focus-set cap (positions before candidates, hysteresis); disconnect → REST fallback + gap logged | Unit + Integration | yes | `test_focus_set_cap_positions_first`, `test_stream_disconnect_fallback` | S6 |
 | T-19 | `MARKET_DATA_PLAN` switch: mocked real-time SIP adapter changes no scanner code | Unit (import graph / file hash) | yes | `test_plan_flip_changes_no_scanner_module` | S2 |
 | T-20 | No secrets, no live URL, no funding endpoint, no live key env read in the codebase | Unit (grep) | ✔ | test_no_live_or_secret_strings ✔ | P0 |
+| T-55 | Supabase exposure: `anon`/`authenticated` cannot read, write or call anything in `trading`; worker role cannot DELETE; `public` empty; boot checks for Data-API exposure and bucket privacy (ADR-0022) | DB ✔ + Integration | ✔ DB | tests/test_security.py (4) ✔; `test_boot_exposure_checks` (mock REST/Storage) | P0 / S1 |
+| T-56 | Fee engine: effective-dated schedule selection, per-trade cap, unknown date raises (ADR-0012, A-06) | Unit | ✔ | tests/test_fees.py (3) ✔ | P0 |
 | T-21 | No self-modification: worker has no write path to prompts/config; boot halts on version drift without a reason | Integration | yes | `test_boot_halts_without_phase_reason`, `test_boot_opens_phase_with_reason` | S1 |
 | T-22 | `settles_on` = T+1 from the calendar; not used for eligibility | Unit | yes | `test_settlement_date_metadata_only` | S3 |
 | T-23 | Prompt v1 states every §7.7 constraint; strict JSON; invalid output → `REJECTED_INVALID_OUTPUT` | Unit | yes (golden prompt test) | `test_prompt_constraints_present`, `test_invalid_output_rejected` | S5 |
@@ -52,10 +55,13 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 | T-53 | Candidate outcomes: every candidate, traded or not, gets forward returns at each horizon | Integration | yes | `test_candidate_outcomes_complete` | S7 |
 | T-54 | Phase test: prompt bump opens a phase; subsequent decisions carry it | DB ✔ + Integration | ✔ | test_prompt_bump_opens_new_phase_and_decisions_carry_it ✔; `test_boot_opens_phase_with_reason` | S1 |
 
-## Already written and passing (64)
+## Already written and passing (78)
 - `tests/test_migrations.py` (3): all §10.1 tables exist; RLS everywhere; Postgres enums == Python enums.
 - `tests/test_db_invariants.py` (39, incl. 7 parametrized no-delete cases): every schema-enforced invariant listed in `05-schema.md`.
-- `tests/test_config.py` (8): spec defaults, model IDs, LIVE refused, config hash, versions, fee shape, exclusions schema, SIC codes real.
+- `tests/test_reservation.py` (7): ADR-0021 reservation bounds, release, conversion, no growth, sells reserve nothing, two-connection race.
+- `tests/test_security.py` (4): ADR-0022 client roles denied, worker cannot delete, `public` empty.
+- `tests/test_fees.py` (3): effective-dated fee schedules.
+- `tests/test_config.py` (8): spec defaults, five-field broker policy, model IDs, LIVE refused, config hash, versions, fee schedules, exclusions schema, SIC codes real.
 - `tests/test_models.py` (8): proposal/timeline/order/fill/broker-policy validation.
 - `tests/test_exclusions.py` (5): both enforcement paths of the screen.
 - `tests/test_lockout_grep.py` (1): T-20 — no live URL, live key names, funding endpoints, or secret-looking literals in code/config.
@@ -63,6 +69,7 @@ exists; ✔ = already written and passing (64 tests in `tests/`).
 ## Running
 ```
 pg_ctlcluster 16 main start   # or any PostgreSQL 16 with createdb rights
-TRADEAGENT_TEST_ADMIN_URL=postgresql://postgres:postgres@localhost:5432/postgres python -m pytest -q
+export TRADEAGENT_TEST_ADMIN_URL='postgresql://<admin-user>:<password>@localhost:5432/postgres'
+python -m pytest -q
 ```
 DB tests create a throw-away database per session, apply every migration, and run each test in a rolled-back transaction.

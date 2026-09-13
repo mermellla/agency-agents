@@ -1,4 +1,5 @@
 -- 0002: experiment group — §10.1 "Experiment", §13.2 phases, ADR-0019 versioning.
+set search_path = trading, public;
 
 create table experiments (
   id               uuid primary key default gen_random_uuid(),

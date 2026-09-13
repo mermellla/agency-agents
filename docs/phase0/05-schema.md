@@ -1,7 +1,9 @@
 # Supabase / Postgres schema summary
 
-Migrations: `supabase/migrations/20260913000001…08_*.sql`. Applied clean on PostgreSQL 16.13; 42 tables, 33 enums,
-12 trigger functions; RLS enabled on every table (service-role access only). Ledger style: ADR-0002.
+Migrations: `supabase/migrations/20260913000001…10_*.sql` (nine files; 0008 was renumbered 0010 so the security
+migration runs last). Applied clean on PostgreSQL 16.13: **38 tables, 32 enums, 21 functions**, all in schema
+`trading` (ADR-0022), nothing in `public`. Three tables are deferred in `supabase/migrations_deferred/`
+(`approvals` → S9; `cost_periods`, `analysis_reports` → S7). Ledger style: ADR-0002. Capital reservation: ADR-0021.
 
 ## Table groups (§10.1)
 | Group | Tables | Notes |
@@ -9,8 +11,8 @@ Migrations: `supabase/migrations/20260913000001…08_*.sql`. Applied clean on Po
 | Experiment | `experiments`, `experiment_phases`, `portfolios`, `prompt_versions`, `config_versions`, `scanner_versions`, `qb_rules_versions`, `exclusion_list_versions` | one open phase per experiment (partial unique index); one primary and one broker-facing portfolio per experiment; `experiments.live_locked_out` CHECK |
 | Market | `instruments`, `universe_memberships`, `regimes`, `scans`, `candidates`, `candidate_outcomes`, `source_status`, `benchmark_prices` | `candidates` carries `signal_bar_time`, `signal_observed_at`, `sip_signal_*`, IEX price + age at scan/triage/decision/order (D-50); `scans.bars_end_at ≤ started_at` |
 | Decisions | `data_snapshots`, `decisions`, `decision_sources`, `llm_calls` | full §7.6 column set; five NOT NULL version FKs; `pre_critique_proposal` jsonb; `raw_model_output` |
-| Execution | `positions`, `orders`, `order_events`, `fills`, `lots`, `lot_events`, `cash_ledger`, `fees`, `stop_coverage`, `reconciliations`, `owner_resolutions`, `halts`, `broker_policy_checks`, `budget_ledger`, `approvals` | `client_order_id` UNIQUE; `broker_order_id`, `broker_fill_id`, `order_events.broker_event_id` UNIQUE (idempotent replay) |
-| Analytics | `forecast_resolutions`, `closed_trades`, `shadow_links`, `cost_periods`, `analysis_reports`, `notifications` | `closed_trades` has every §10.1/§13.3 column incl. both P&L views, cost categories, `overnight_gap_exposure`, `post_exit_return_{1,5}s_pct`, `time_in_loss_seconds` |
+| Execution | `positions`, `orders` (+ `reserved_notional_usd`), `order_events`, `fills`, `lots`, `lot_events`, `cash_ledger`, `fees`, `stop_coverage`, `reconciliations`, `owner_resolutions`, `halts`, `broker_policy_checks`, `budget_ledger` (`approvals` deferred to S9) | `client_order_id` UNIQUE; `broker_order_id`, `broker_fill_id`, `order_events.broker_event_id` UNIQUE (idempotent replay); `portfolio_available_cash()` = balance − open BUY reservations |
+| Analytics | `forecast_resolutions`, `closed_trades`, `shadow_links`, `notifications` (`cost_periods`, `analysis_reports` deferred to S7) | `closed_trades` has every §10.1/§13.3 column incl. both P&L views, cost categories, `overnight_gap_exposure`, `post_exit_return_{1,5}s_pct`, `time_in_loss_seconds` |
 
 ## Invariants and where they are enforced (§10.2)
 | Invariant | Mechanism | Test |
@@ -25,6 +27,8 @@ Migrations: `supabase/migrations/20260913000001…08_*.sql`. Applied clean on Po
 | Version columns non-null | NOT NULL + FKs to registries | test_versions_non_null |
 | Forecast contract immutable; resolution against entry levels from `fill_at` | `decisions_immutable_columns`; `forecast_resolutions_check_contract`; resolutions append-only | test_forecast_contract_immutable, test_working_levels_can_move_but_resolution_uses_entry_levels |
 | Cash never negative; ledger chains | CHECK `balance_after_usd ≥ 0`; `cash_ledger_check_chain` | test_cash_ledger_never_negative_and_chains |
+| Concurrent BUYs cannot over-commit virtual cash (ADR-0021) | `orders_reserve_capital` under `pg_advisory_xact_lock` per portfolio; `RESERVATION_TOO_SMALL`, `INSUFFICIENT_VIRTUAL_CASH`; release on terminal status; shrink on fill; never grows | tests/test_reservation.py (7 tests incl. a two-connection race) |
+| Client roles see nothing; worker cannot delete (ADR-0022) | schema `trading` unexposed; revokes + RLS deny-by-default; `trading_worker` SELECT/INSERT/UPDATE only | tests/test_security.py |
 | Shadows never touch the broker | `fills_check_broker_portfolio`; partial unique indexes on `portfolios` | test_shadow_portfolio_cannot_receive_broker_fill |
 | SHORT/COVER always rejected; NO_ACTION reason; earnings plan; entries carry the contract | CHECKs on `decisions` | tests in test_db_invariants.py |
 | No spread double count | `fills_check_eligibility` (`SPREAD_DOUBLE_COUNT`) | test_spread_double_count_rejected |

@@ -1,5 +1,6 @@
 -- 0005: execution group — §8 risk/execution desk, §8.4 state machine, §8.6 reconciliation, §8.10 broker policy,
 -- §9 budget, §10.1 "Execution". Ledger style per ADR-0002: append-only event tables + rebuildable projections.
+set search_path = trading, public;
 
 create table positions (
   id                          uuid primary key default gen_random_uuid(),
@@ -251,18 +252,6 @@ create table budget_ledger (
 );
 create trigger budget_ledger_updated_at before update on budget_ledger for each row execute function set_updated_at();
 
--- §11 LIVE day-one approvals (designed; LIVE locked out in this phase, ADR-0020).
-create table approvals (
-  id           uuid primary key default gen_random_uuid(),
-  order_id     uuid not null unique references orders(id),
-  token_hash   text not null unique,
-  expires_at   timestamptz not null,
-  decided_at   timestamptz,
-  outcome      text check (outcome in ('approve', 'reject', 'expired')),
-  decided_via  text,
-  created_at   timestamptz not null default now()
-);
-
 -- Append-only / no-delete enforcement (§10.2, ADR-0002).
 create trigger orders_no_delete before delete on orders for each row execute function forbid_delete();
 create trigger order_events_no_delete before delete on order_events for each row execute function forbid_delete();
@@ -279,4 +268,3 @@ create trigger reconciliations_no_delete before delete on reconciliations for ea
 create trigger halts_no_delete before delete on halts for each row execute function forbid_delete();
 create trigger broker_policy_checks_no_delete before delete on broker_policy_checks for each row execute function forbid_delete();
 create trigger budget_ledger_no_delete before delete on budget_ledger for each row execute function forbid_delete();
-create trigger approvals_no_delete before delete on approvals for each row execute function forbid_delete();

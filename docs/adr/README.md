@@ -2,7 +2,8 @@
 
 Format matches Spec v2.3 Appendix A: context, decision, alternatives considered, consequences. ADR-0001 to ADR-0018
 answer Appendix C items 1–18 in order. ADR-0019 and ADR-0020 cover two delegated-by-implication items the spec relies
-on but does not list (how versions and phases are mechanised; how LIVE is kept unreachable in this phase).
+on but does not list (how versions and phases are mechanised; how LIVE is kept unreachable in this phase). ADR-0021 and
+ADR-0022 come from the owner's Phase 0 review (capital reservation under concurrency; Supabase exposure).
 
 | ADR | Appendix C | Title | Status |
 |---|---|---|---|
@@ -26,3 +27,5 @@ on but does not list (how versions and phases are mechanised; how LIVE is kept u
 | [0018](ADR-0018-parallel-critique-portfolio.md) | 18 | Parallel critique portfolio conflict handling | Accepted |
 | [0019](ADR-0019-versioning-and-phases.md) | — | Version computation and phase opening mechanics | Accepted |
 | [0020](ADR-0020-live-lockout.md) | — | LIVE lockout: no code path capable of live execution | Accepted |
+| [0021](ADR-0021-capital-reservation-concurrency.md) | — | Atomic buying-power reservation and portfolio concurrency | Accepted |
+| [0022](ADR-0022-supabase-security.md) | — | Supabase database and Storage exposure: private schema, revoked client roles, least-privilege worker | Accepted |
