@@ -1,4 +1,8 @@
-# Owner decisions requested before Slice 1
+# Owner decisions requested before Slice 1 — **all decided 2026-09-13** (see `docs/spec/AMENDMENTS.md` A-07…A-09)
+
+Decisions: §A approved with amendment (4923/4924 default-deny, 3795 added, utilities via allowlist); §B approved (recommended
+cleanup; GE/PLTR/defense-services retained on the explicit denylist); §C approved as recommended; §D actioned. CAT fee:
+$0.000001 per executed-equivalent share, 2026-05-01…2026-12-31, classified separately until pass-through is verified.
 
 Four items from the Phase 0 review. §A and §B are policy: the recommendations are the coding agent's reading of the
 rules already in the spec (D-11, D-12, D-14), not decisions. §C is a defaults table. §D is the schema-rent audit.

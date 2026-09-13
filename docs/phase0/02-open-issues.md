@@ -3,7 +3,8 @@
 **Status after the owner's Phase 0 review (2026-09-13):** OI-02, OI-03, OI-05 accepted (`docs/spec/AMENDMENTS.md`);
 OI-06 resolved from FINRA's SR-FINRA-2024-019 schedule; OI-01 stays open for the Slice 3 probe; OI-04, OI-07,
 OI-08–OI-12 are presented for decision in `09-owner-decisions.md`. New: OI-14 (capital reservation → ADR-0021) and
-OI-15 (Supabase exposure → ADR-0022), both closed by design and tests.
+OI-15 (Supabase exposure → ADR-0022), both closed by design and tests. **Owner approvals of 2026-09-13 closed OI-04, OI-07,
+OI-08–OI-12 (A-07…A-09).** Only OI-01 remains open (Slice 3 paper probe).
 
 Each item states the evidence, the impact, and the **smallest compliant amendment** proposed. Nothing here has been
 silently reinterpreted: where the package had to pick a value to proceed, the value is marked `(proposed)` in

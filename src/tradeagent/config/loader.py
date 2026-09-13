@@ -13,7 +13,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -161,6 +161,9 @@ class MarketDataConfig(BaseModel):
     market_data_plan: str
     iex_stream_max_symbols: int = Field(ge=1)
     candidate_outcome_horizons: list[str]
+    candidate_outcome_anchor: Literal["quant_baseline_order_eligible_at", "signal_observed_at"] = (
+        "quant_baseline_order_eligible_at"
+    )
     data_upgrade_review_equity_usd: float
     data_upgrade_benefit_factor: float = Field(ge=1)
 
@@ -178,6 +181,7 @@ class BudgetConfig(BaseModel):
     llm_monthly_cap_usd: float = Field(gt=0)
     llm_entry_bucket_pct: float = Field(gt=0, lt=100)
     proration: str
+    benchmark_anchor: Literal["own_experiment_start_close", "inherit_dry_run"] = "own_experiment_start_close"
     model_triage: str
     model_decision: str
     model_critique: str

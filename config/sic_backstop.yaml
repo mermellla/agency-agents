@@ -3,7 +3,7 @@
 # Codes proposed in the spec that DO NOT EXIST in EDGAR's list are recorded under `spec_codes_not_in_edgar`
 # and must not be relied on; the amendment is proposed in docs/phase0/02-open-issues.md (OI-04).
 schema_version: 1
-version: "2026.09.13-seed"
+version: "2026.09.13-r1"
 updated_on: 2026-09-13
 source: https://www.sec.gov/info/edgar/siccodes.htm
 
@@ -21,6 +21,7 @@ deny:
   weapons_defense:
     - {sic: 3480, title: "ORDNANCE & ACCESSORIES, (NO VEHICLES/GUIDED MISSILES)", note: "covers spec's 3480/3483/3489; only 3480 exists in EDGAR"}
     - {sic: 3760, title: "GUIDED MISSILES & SPACE VEHICLES & PARTS"}
+    - {sic: 3795, title: "TANKS & TANK COMPONENTS (spec code)", note: "owner decision 2026-09-13: retained although absent from EDGAR's list; matches nothing today, future-proofs the screen. Vehicle makers are caught by the denylist (GD, OSK)."}
 
 # Default-deny: a name with one of these SICs is skipped with NEEDS_ETHICAL_REVIEW unless it appears in
 # exclusions.yaml `allow` (§4.4 item 3, item 6).
@@ -33,11 +34,11 @@ default_deny:
   - {sic: 3730, title: "SHIP & BOAT BUILDING & REPAIRING", note: "added: naval shipbuilders (e.g. HII) sit here; civil yards too"}
   - {sic: 3533, title: "OIL & GAS FIELD MACHINERY & EQUIPMENT", note: "added: oilfield-services equipment makers; spec scope includes oilfield services"}
   - {sic: 6792, title: "OIL ROYALTY TRADERS", note: "added: royalty trusts carry producer economics"}
+  - {sic: 4923, title: "NATURAL GAS TRANSMISISON & DISTRIBUTION", note: "owner decision 2026-09-13: default-deny (catches OKE); gas utilities the owner wants tradable go on the allowlist"}
+  - {sic: 4924, title: "NATURAL GAS DISTRIBUTION", note: "owner decision 2026-09-13: default-deny (catches LNG/Cheniere); utilities via allowlist"}
 
 # Listed in the spec as "review before enabling"; NOT enforced until the owner decides (§4.4 item 2).
 review_before_enabling:
-  - {sic: 4923, title: "NATURAL GAS TRANSMISISON & DISTRIBUTION", reason: "mixes utility distribution (out of scope)"}
-  - {sic: 4924, title: "NATURAL GAS DISTRIBUTION", reason: "utility (out of scope)"}
   - {sic: 5171, title: "WHOLESALE-PETROLEUM BULK STATIONS & TERMINALS"}
   - {sic: 5172, title: "WHOLESALE-PETROLEUM & PETROLEUM PRODUCTS (NO BULK STATIONS)"}
   - {sic: 2990, title: "MISCELLANEOUS PRODUCTS OF PETROLEUM & COAL", reason: "added for review: asphalt/lubricant makers"}

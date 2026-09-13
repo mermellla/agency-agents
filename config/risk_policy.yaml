@@ -1,7 +1,7 @@
 # Risk policy and runtime configuration — Spec v2.3 Appendix B.
 # config_version is the sha256 of this file's canonical form (ADR-0019); a change opens a new phase (§13.2).
 # Values marked (ADR-xxxx) were delegated to the coding agent and are decided in docs/adr/.
-# Values marked (proposed) fill keys the spec lists without a default; see docs/phase0/02-open-issues.md.
+# Values marked (approved 2026-09-13) fill keys the spec listed without a default (OI-08…OI-12, docs/phase0/09-owner-decisions.md §C).
 
 schema_version: 1
 
@@ -20,7 +20,7 @@ execution:
 
 capital:
   experiment_equity_start: 500.00
-  overfill_buffer_pct: 1.0         # (proposed) §3.4 whole-share market orders capped at cash × (1 − 1%)
+  overfill_buffer_pct: 1.0         # (approved 2026-09-13) §3.4 whole-share market orders capped at cash × (1 − 1%)
 
 position_limits:                   # §8.2
   max_single_position_pct: 40
@@ -43,22 +43,22 @@ scanner:                           # §6
   scan_interval_min: 15
   scan_top_n: 25
   triage_top_k: 3
-  triage_score_threshold: 0.60     # (proposed) §6.4 "configurable thresholds" — composite score on [0,1]
-  triage_min_interval_min: 30      # (proposed) minimum spacing between triage passes on the same candidate set
+  triage_score_threshold: 0.60     # (approved 2026-09-13) §6.4 "configurable thresholds" — composite score on [0,1]
+  triage_min_interval_min: 30      # (approved 2026-09-13) minimum spacing between triage passes on the same candidate set
 
 staleness:                         # §5.5
   max_sip_bar_age_min: 20
   max_iex_trade_age_min: 5
-  max_news_age_hours: 36           # (proposed)
-  fallback_price_tolerance_pct: 1.0   # (proposed) §14 rule 5
+  max_news_age_hours: 36           # (approved 2026-09-13)
+  fallback_price_tolerance_pct: 1.0   # (approved 2026-09-13) §14 rule 5
 
 extended_hours:                    # §4.3, ADR-0011 / open issue OI-02 (overnight session excluded)
-  ext_hours_max_quote_age_sec: 60  # (proposed)
-  ext_hours_max_cross_pct: 0.5     # (proposed)
+  ext_hours_max_quote_age_sec: 60  # (approved 2026-09-13)
+  ext_hours_max_cross_pct: 0.5     # (approved 2026-09-13)
   sessions_allowed_for_exits: [premarket, after_hours]   # never overnight (Blue Ocean) — OI-02
 
 reviews:                           # §7.5
-  trigger_invalidation_proximity_pct: 1.5   # (proposed)
+  trigger_invalidation_proximity_pct: 1.5   # (approved 2026-09-13)
 
 simulation:                        # §8.9, §12
   sim_fill_delay_min: 15
@@ -70,23 +70,25 @@ market_data:                       # §5.6, ADR-0014, ADR-0015
   market_data_plan: basic          # basic | algo_trader_plus
   iex_stream_max_symbols: 30       # verified 2026-09-13 (Alpaca "Basic: 30 symbols")
   candidate_outcome_horizons: ["15m", "1h", "1d", "5d"]
-  data_upgrade_review_equity_usd: 5000   # (proposed) §13.6
+  candidate_outcome_anchor: quant_baseline_order_eligible_at   # (approved 2026-09-13) OI-12
+  data_upgrade_review_equity_usd: 5000   # (approved 2026-09-13) §13.6
   data_upgrade_benefit_factor: 2.0
 
 budget:                            # §9, ADR-0004
   llm_monthly_cap_usd: 10.00
-  llm_entry_bucket_pct: 60         # (proposed) 60% entries (hard), 40% exits/reviews (soft)
-  proration: trading_days_in_calendar_month   # (proposed) unspent daily allowance carries within the month only
+  llm_entry_bucket_pct: 60         # (approved 2026-09-13) 60% entries (hard), 40% exits/reviews (soft)
+  proration: trading_days_in_calendar_month   # (approved 2026-09-13) unspent daily allowance carries within the month only
+  benchmark_anchor: own_experiment_start_close   # (approved 2026-09-13) OI-08: each experiment anchors SPY/VTI/cash to its own started_on close
   model_triage: claude-haiku-4-5
   model_decision: claude-sonnet-5
   model_critique: claude-sonnet-5
-  dossier_max_headlines: 8         # (proposed)
-  dossier_token_cap: 6000          # (proposed) full dossier; slim dossier cap 900
+  dossier_max_headlines: 8         # (approved 2026-09-13)
+  dossier_token_cap: 6000          # (approved 2026-09-13) full dossier; slim dossier cap 900
 
 guards:                            # §8.7
-  max_orders_per_day: 12           # (proposed)
-  max_llm_calls_per_hour: 40       # (proposed)
-  halt_after_consecutive_rejects: 3   # (proposed)
+  max_orders_per_day: 12           # (approved 2026-09-13)
+  max_llm_calls_per_hour: 40       # (approved 2026-09-13)
+  halt_after_consecutive_rejects: 3   # (approved 2026-09-13)
   kill_switch_daily_loss_pct: null # off (bug containment only)
 
 retention:
