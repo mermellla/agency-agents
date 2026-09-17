@@ -13,7 +13,7 @@
 | 7 | Supabase/Postgres schema | `05-schema.md` |
 | 8 | Initial repo-tracked migrations | `supabase/migrations/` (nine files; 38 tables, 32 enums, 21 functions in schema `trading`; applied clean on PostgreSQL 16) + `supabase/migrations_deferred/` (3 tables deferred to S7/S9) |
 | 9 | Test plan mapping every §17 deliverable and invariant to tests | `06-test-plan.md` |
-| 10 | Tests writable before implementation | `06-test-plan.md` column "Pre-impl"; 97 already written and passing in `tests/`; ruff, mypy --strict, detect-secrets clean |
+| 10 | Tests writable before implementation | `06-test-plan.md` column "Pre-impl"; 130 already written and passing in `tests/`; ruff, mypy --strict, detect-secrets clean |
 | 11 | Implementation sequence as vertical slices | `07-implementation-sequence.md` |
 
 Also produced: versioned config seeds in `config/` (risk policy, fees, SIC backstop, seed denylist, scanner weights,
@@ -24,6 +24,11 @@ QB-1.0 rules, phase-change record) and the Python package skeleton (`pyproject.t
   no implementations; the only executable logic is config loading/validation, the exclusion screen, and model validation.
 - No credentials anywhere; no network calls in code or tests.
 - No LIVE path: refused by config, schema, and state machine (ADR-0020).
+
+## Slice 2 delivered (2026-09-17)
+Universe and scanner with Jev-judged catalysts (ADR-0023, A-10); see `07-implementation-sequence.md` row S2. 130 tests,
+ruff, mypy --strict, detect-secrets clean. Live scans need `ALPACA_PAPER_KEY/SECRET`, `EDGAR_USER_AGENT`, `FINNHUB_API_KEY`,
+`TYPESAFE_API_KEY` in the environment; none were present in the development environment.
 
 ## Slice 1 delivered (2026-09-13)
 Boot and ledger spine: `tradeagent boot-check | run | verify-projections` (`src/tradeagent/cli.py`); see

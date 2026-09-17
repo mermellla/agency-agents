@@ -41,7 +41,7 @@ def test_spec_defaults(settings):
 
 def test_model_ids_are_current_and_tiered(settings):
     b = settings.risk.budget
-    assert b.model_triage == "claude-haiku-4-5"
+    assert b.model_triage == "jev-latest"  # ADR-0023
     assert b.model_decision == "claude-sonnet-5" and b.model_critique == "claude-sonnet-5"
 
 

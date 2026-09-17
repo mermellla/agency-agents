@@ -17,6 +17,7 @@ import psycopg.types.json
 from psycopg.rows import dict_row
 
 from tradeagent.domain.enums import ExecutionMode, HaltScope, PortfolioKind, ReconcileResult
+from tradeagent.domain.models import Instrument, LLMCall
 
 # YAML config carries dates; jsonb payloads serialise them as ISO strings.
 psycopg.types.json.set_json_dumps(lambda obj: json.dumps(obj, default=str, sort_keys=True))
@@ -240,4 +241,133 @@ class Database:
         self.conn.execute(
             "insert into notifications (kind, recipient, subject, provider_message_id, status, payload) values (%s, %s, %s, %s, %s, %s)",
             (kind, recipient, subject, provider_message_id, status, psycopg.types.json.Jsonb(payload)),
+        )
+
+    # ---- market group (§6.4, §10.1) — Slice 2
+    def upsert_instruments(self, instruments: list[Instrument], exclusion_list_version: str) -> None:
+        for i in instruments:
+            self.conn.execute(
+                """insert into instruments (symbol, name, exchange, cik, sic, tradable, fractionable, universe_status, status_reason, exclusion_list_version, last_10k_filed_on, as_of)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+                   on conflict (symbol) do update set name = excluded.name, exchange = excluded.exchange, cik = excluded.cik, sic = excluded.sic,
+                     tradable = excluded.tradable, fractionable = excluded.fractionable, universe_status = excluded.universe_status,
+                     status_reason = excluded.status_reason, exclusion_list_version = excluded.exclusion_list_version,
+                     last_10k_filed_on = excluded.last_10k_filed_on, as_of = now()""",
+                (
+                    i.symbol,
+                    i.name,
+                    i.exchange,
+                    i.cik,
+                    i.sic,
+                    i.tradable,
+                    i.fractionable,
+                    i.universe_status.value,
+                    i.status_reason,
+                    exclusion_list_version,
+                    i.last_10k_filed_on,
+                ),
+            )
+
+    def upsert_regime(self, trade_date: date, regime: str, scanner_version: str, inputs: dict[str, Any]) -> UUID:
+        row = self.conn.execute(
+            """insert into regimes (trade_date, regime, scanner_version, inputs) values (%s, %s, %s, %s)
+               on conflict (trade_date, scanner_version) do update set regime = excluded.regime, inputs = excluded.inputs, computed_at = now() returning id""",
+            (trade_date, regime, scanner_version, psycopg.types.json.Jsonb(inputs)),
+        ).fetchone()
+        assert row is not None
+        return UUID(str(row["id"]))
+
+    def insert_source_status(self, stamps: list[dict[str, Any]]) -> None:
+        for s in stamps:
+            self.conn.execute(
+                "insert into source_status (domain, source, grade, health, detail) values (%s, %s, %s, %s, %s)",
+                (s["domain"], s["source"], s["grade"], s["health"], psycopg.types.json.Jsonb(s)),
+            )
+
+    def persist_scan(
+        self,
+        out: Any,
+        experiment_id: UUID,
+        phase_id: UUID,
+        source_status: list[dict[str, Any]],
+        entries_halted: list[str],
+    ) -> UUID:
+        r = out.result
+        regime_id = self.upsert_regime(r.started_at.date(), r.regime.value, r.scanner_version, out.regime_inputs)
+        self.insert_source_status(source_status)
+        self.conn.execute(
+            """insert into scans (id, experiment_id, experiment_phase_id, kind, feed_tier, started_at, scanner_completed_at, bars_end_at, regime_id, scanner_version,
+               exclusion_list_version, universe_size, candidate_count, source_status, signals_unavailable)
+               values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                r.scan_id,
+                experiment_id,
+                phase_id,
+                r.kind,
+                r.feed_tier.value,
+                r.started_at,
+                r.scanner_completed_at,
+                r.bars_end_at,
+                regime_id,
+                r.scanner_version,
+                r.exclusion_list_version,
+                r.universe_size,
+                len(r.candidates),
+                psycopg.types.json.Jsonb({"sources": source_status, "entries_halted": entries_halted}),
+                psycopg.types.json.Jsonb(r.signals_unavailable),
+            ),
+        )
+        for inst in out.memberships:
+            self.conn.execute(
+                "insert into universe_memberships (scan_id, symbol, status, reason) values (%s, %s, %s, %s) on conflict do nothing",
+                (r.scan_id, inst.symbol, inst.universe_status.value, inst.status_reason),
+            )
+        for c in r.candidates:
+            sig = dict(out.signals.get(c.symbol, {}))
+            self.conn.execute(
+                """insert into candidates (id, scan_id, symbol, rank, composite_score, signals, strategy_tags, signal_bar_time, signal_observed_at, sip_signal_price,
+                   sip_signal_timestamp, iex_price_at_scan, iex_quote_age_sec_at_scan) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    c.candidate_id,
+                    c.scan_id,
+                    c.symbol,
+                    c.rank,
+                    c.composite_score,
+                    psycopg.types.json.Jsonb(sig),
+                    c.strategy_tags,
+                    c.signal_bar_time,
+                    c.signal_observed_at,
+                    c.sip_signal_price,
+                    c.sip_signal_timestamp,
+                    c.iex_price_at_scan,
+                    c.iex_quote_age_sec_at_scan,
+                ),
+            )
+        return UUID(str(r.scan_id))
+
+    def insert_llm_call(
+        self, call: LLMCall, experiment_id: UUID, phase_id: UUID, prompt_version: str, decision_id: UUID | None = None
+    ) -> None:
+        self.conn.execute(
+            """insert into llm_calls (experiment_id, experiment_phase_id, decision_id, stage, bucket, model, prompt_version, tokens_in, tokens_out,
+               tokens_cached_read, tokens_cached_write, cost_usd, latency_ms, request_hash, response_hash, status)
+               values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                experiment_id,
+                phase_id,
+                decision_id,
+                call.stage.value,
+                call.bucket.value,
+                call.model,
+                prompt_version,
+                call.tokens_in,
+                call.tokens_out,
+                call.tokens_cached_read,
+                call.tokens_cached_write,
+                call.cost_usd,
+                call.latency_ms,
+                call.request_hash,
+                call.response_hash,
+                call.status,
+            ),
         )

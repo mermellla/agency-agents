@@ -19,6 +19,15 @@ composite_score:                 # ADR-0008 — cross-sectional z-scores, clippe
   clip_z: 3.0
   unavailable_signal_policy: renormalize_weights   # dropped-signal weights (§6.3) are excluded and remaining weights renormalized
 
+catalyst:                        # ADR-0023 (A-10): the §6.2 "significant news / material filing" signal
+  classifier: jev                # jev | keyword — keyword is also the automatic fallback when Jev is down
+  model: jev-latest
+  material_threshold: 0.60       # Noul probability at/above which a headline counts as a catalyst
+  max_headlines_per_symbol: 6
+  keyword_fallback:              # deterministic rule used when classifier = keyword or Jev is unavailable
+    positive: [beats, raises guidance, upgrade, upgraded, record revenue, buyback, acquisition, acquire, contract award, fda approval, approves]
+    negative: [misses, cuts guidance, downgrade, downgraded, lawsuit, investigation, recall, delisting, bankruptcy, going concern, resigns]
+
 regime:                          # ADR-0009 — computed on SPY daily bars and universe breadth before the first scan each day
   trend_fast_sma: 20
   trend_slow_sma: 50

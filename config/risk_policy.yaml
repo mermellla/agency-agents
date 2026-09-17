@@ -79,9 +79,10 @@ budget:                            # §9, ADR-0004
   llm_entry_bucket_pct: 60         # (approved 2026-09-13) 60% entries (hard), 40% exits/reviews (soft)
   proration: trading_days_in_calendar_month   # (approved 2026-09-13) unspent daily allowance carries within the month only
   benchmark_anchor: own_experiment_start_close   # (approved 2026-09-13) OI-08: each experiment anchors SPY/VTI/cash to its own started_on close
-  model_triage: claude-haiku-4-5
+  model_triage: jev-latest         # ADR-0023 (A-10): TypeSafe Jev ranks triage; Claude keeps decisions and critique
   model_decision: claude-sonnet-5
   model_critique: claude-sonnet-5
+  jev_cost_per_1k_tokens_usd: 0.0  # ADR-0023: alpha access, no token cost; set when pricing exists (opens a phase)
   dossier_max_headlines: 8         # (approved 2026-09-13)
   dossier_token_cap: 6000          # (approved 2026-09-13) full dossier; slim dossier cap 900
 

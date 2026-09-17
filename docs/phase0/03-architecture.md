@@ -13,15 +13,16 @@ tradeagent/
   versioning/        registry.py, phases.py         version registries, boot drift check, phase opening (ADR-0019)   S1 ✔
   persistence/       db.py                          psycopg Database over the schema; cash-chain verify             S1 ✔
   adapters/
-    alpaca/          market_data.py (SIP_DELAYED, IEX_REALTIME, SIP_REALTIME), stream.py, broker_paper.py,
-                     broker_null.py, calendar.py, corporate_actions.py, activities.py, news.py               S2/S3
-    edgar/           submissions.py, filings.py, xbrl.py, tickers.py                                          S2/S5
-    finnhub/         earnings.py                                                                              S2
+    alpaca/          market_data.py ✔ (SIP_DELAYED, IEX_REALTIME, SIP_REALTIME), assets.py ✔, news.py ✔, client.py ✔,
+                     calendar.py ✔, broker_null.py ✔, stream.py, broker_paper.py, corporate_actions.py, activities.py   S2 ✔ / S3
+    edgar/           client.py ✔ (tickers, submissions, fair-access throttle), filings.py, xbrl.py                S2 ✔ / S5
+    finnhub/         earnings.py ✔                                                                            S2 ✔
+    typesafe/        jev.py ✔, questions.py ✔ (ADR-0023 judgment engine)                                       S2 ✔
     email/           resend.py, smtp.py, templates/                                                           S4
-  data/              registry.py (primary/fallback per domain, health, source_status), staleness.py           S2
-  universe/          builder.py (ADR-0005), floors.py (ADR-0003)                                              S2
-  scanner/           signals/*.py (tier-aware), composite.py (ADR-0008), regime.py (ADR-0009), scanner.py,
-                     event_driven.py (interface only until the plan flips)                                    S2
+  data/              registry.py ✔ (primary/fallback per domain, health, source_status), staleness.py         S2 ✔ / S4
+  universe/          builder.py ✔ (ADR-0005 membership test + ADR-0003 floors + exclusions)                    S2 ✔
+  scanner/           signals/{technical,catalyst}.py ✔ (tier-aware; Jev catalysts), composite.py ✔ (ADR-0008),
+                     regime.py ✔ (ADR-0009), scanner.py ✔ (pure), runner.py ✔ (I/O + persist)                S2 ✔
   agent/             dossier.py, prompts/ (versioned files), llm_client.py, triage.py, decide.py, critique.py,
                      reviews.py                                                                                S5/S6
   risk/              desk.py (§8.1 order), sizing.py, budget.py, guards.py                                    S4
@@ -31,7 +32,7 @@ tradeagent/
                      deterministic_exit_shadow.py                                                              S4/S6
   analytics/         forecast_resolution.py (ADR-0017), candidate_outcomes.py, closed_trades.py,
                      report.py (§13.3, ADR-0016), fees.py (ADR-0012)                                           S4/S7
-  ops/               scheduler.py (calendar-driven) ✔, boot.py (sequence below) ✔, checks.py (ADR-0022) ✔,
+  ops/               scheduler.py ✔, boot.py ✔, checks.py ✔, jobs.py ✔ (scan jobs; composition root),
                      halts.py, notifications.py, context_prune.py (§10.4), digest.py                           S1–S4
   cli.py             `tradeagent run | boot-check | report | verify-projections | probe-fractional-stop`       S1+
 ```

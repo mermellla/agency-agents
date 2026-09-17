@@ -185,6 +185,7 @@ class BudgetConfig(BaseModel):
     model_triage: str
     model_decision: str
     model_critique: str
+    jev_cost_per_1k_tokens_usd: float = Field(ge=0)
     dossier_max_headlines: int = Field(ge=1)
     dossier_token_cap: int = Field(ge=500)
 
