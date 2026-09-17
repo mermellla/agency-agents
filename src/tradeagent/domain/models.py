@@ -139,6 +139,18 @@ class Trade(Frozen):
     stamp: SourceStamp
 
 
+class Headline(Frozen):
+    """A news item as served by the news domain (§5.2); judged by Jev in the catalyst signal (ADR-0023)."""
+
+    id: str
+    symbols: tuple[str, ...]
+    headline: str
+    summary: str
+    source: str
+    created_at: datetime
+    url: str
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Universe and scanner (§4, §6)
 # ---------------------------------------------------------------------------------------------------------------

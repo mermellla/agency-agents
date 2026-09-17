@@ -29,3 +29,4 @@ ADR-0022 come from the owner's Phase 0 review (capital reservation under concurr
 | [0020](ADR-0020-live-lockout.md) | — | LIVE lockout: no code path capable of live execution | Accepted |
 | [0021](ADR-0021-capital-reservation-concurrency.md) | — | Atomic buying-power reservation and portfolio concurrency | Accepted |
 | [0022](ADR-0022-supabase-security.md) | — | Supabase database and Storage exposure: private schema, revoked client roles, least-privilege worker | Accepted |
+| [0023](ADR-0023-jev-judgment-engine.md) | — | Jev (TypeSafe System One) as the judgment engine for structured model calls; Claude keeps generated decisions | Accepted (owner direction 2026-09-17) |

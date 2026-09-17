@@ -12,7 +12,7 @@ Start at `docs/phase0/00-phase0-index.md`. Decisions: `docs/adr/`. Accepted spec
 ```
 uv pip install -e ".[dev]"              # or: pip install -e ".[dev]"
 export TRADEAGENT_TEST_ADMIN_URL='postgresql://<admin-user>:<password>@localhost:5432/postgres'   # PostgreSQL 16, createdb rights
-python -m pytest -q                      # 97 tests; db tests create and drop a throw-away database
+python -m pytest -q                      # 130 tests; db tests create and drop a throw-away database
 ruff check src tests && ruff format --check src tests
 python -m mypy src                       # strict, pydantic plugin
 detect-secrets scan --all-files --exclude-files '^\.git/'
