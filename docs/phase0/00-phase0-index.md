@@ -25,6 +25,14 @@ QB-1.0 rules, phase-change record) and the Python package skeleton (`pyproject.t
 - No credentials anywhere; no network calls in code or tests.
 - No LIVE path: refused by config, schema, and state machine (ADR-0020).
 
+## Slice 4 delivered (2026-09-20)
+Risk desk, budget desk and guards, executor with atomic reservation, ADR-0017 fill reconstruction, QB-1.0 with
+deterministic simulated exits, SPY/VTI/cash benchmarks, dividends, closed trades with both P&L views, Resend notifier
+and the Jev-tagged daily digest; see `07-implementation-sequence.md` row S4. 178 tests, ruff, mypy --strict,
+detect-secrets clean. DRY_RUN can now trade the quant baseline end to end from real scans once `ALPACA_PAPER_KEY/SECRET`
+(market data and calendar), `EDGAR_USER_AGENT`, `TYPESAFE_API_KEY` and, for email, `RESEND_API_KEY` + `EMAIL_FROM` +
+`OWNER_EMAIL` are in the environment. The primary LLM portfolio trades from Slice 5.
+
 ## Slice 3 delivered (2026-09-18; paper probe pending)
 Paper broker gateway, §8.10 policy enforcement on every boot, §8.6 replay-or-halt reconciliation through the ledger,
 09:10 stop re-arm with 09:31/09:33 verification, corporate actions; see `07-implementation-sequence.md` row S3. 149

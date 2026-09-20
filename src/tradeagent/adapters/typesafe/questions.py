@@ -74,3 +74,52 @@ def catalyst_state(
         "source": source,
         "published_at": published_at,
     }
+
+
+DIGEST_SET = "digest.v1"
+
+
+def digest_questions() -> dict[str, Noul | Choice | Score]:
+    """ADR-0023 analytics tagging: one judgment over the day's statistics so the digest subject line says what kind of
+    day it was and whether the owner must act. The statistics, not the judgment, remain the record."""
+    return {
+        "day_character": Choice(
+            instructions=(
+                "Given the day's counts (`scans`, `decisions`, `rejections`, `fills`, `closed_trades`, `halts`, "
+                "`open_halts`, `budget_entries_spent_pct`, `equity_change_pct`), what kind of trading day was this "
+                "for a small experimental portfolio?"
+            ),
+            criteria={
+                "quiet": "Scans ran but there was little or no trading activity and nothing went wrong",
+                "routine": "Some decisions and fills, all within normal limits, no incidents",
+                "active": "Many decisions or fills relative to the limits, still without incidents",
+                "eventful": "Incidents worth reading about: halts, reconciliation repairs, stop incidents, or a large equity move",
+                "degraded": "The system was halted or a required data source was down for a material part of the session",
+            },
+        ),
+        "owner_attention_needed": Noul(
+            instructions=(
+                "Do these statistics indicate the owner must act before the next session (clear a halt, resolve a "
+                "reconciliation, fund nothing — deposits are prohibited — or review a budget exhaustion)?"
+            ),
+            criteria={
+                "true": "There is an uncleared halt, an unexplained reconciliation difference, a stop incident, or the entry budget is exhausted early in the month",
+                "false": "Everything is within normal operation; the digest is informational",
+            },
+        ),
+    }
+
+
+def digest_state(stats: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "scans",
+        "decisions",
+        "rejections",
+        "fills",
+        "closed_trades",
+        "halts",
+        "open_halts",
+        "budget_entries_spent_pct",
+        "equity_change_pct",
+    )
+    return {k: stats.get(k) for k in keys}

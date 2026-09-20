@@ -1,4 +1,4 @@
-"""`tradeagent` command line: boot-check | run | verify-projections."""
+"""`tradeagent` command line: boot-check | run | verify-projections | probe-fractional-stop | digest."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from tradeagent.adapters.alpaca.calendar import StaticCalendar, default_window
@@ -61,15 +62,88 @@ def cmd_boot_check(env: dict[str, str]) -> int:
 
 
 def cmd_run(env: dict[str, str]) -> int:
-    rc = cmd_boot_check(env)
-    if rc != 0:
-        return rc
+    """Boot, then wire every job the delivered slices provide and run the calendar-driven scheduler."""
+    from tradeagent.adapters.alpaca.client import AlpacaClient
+    from tradeagent.adapters.alpaca.market_data import RequestBudget, make_market_data
+    from tradeagent.ops.jobs import build_runner, register_execution_jobs
+    from tradeagent.ops.portfolio_jobs import build_portfolio_services, register_portfolio_jobs
+
     settings = load_settings(env=env)
-    scheduler = Scheduler(_calendar(env), settings.risk.scanner.scan_interval_min)
+    db = Database(connect(env["DATABASE_URL"]))
+    broker = make_broker(settings, env)
+    try:
+        report = boot(settings, env, db, broker, code_version=_code_version(env))
+    except BootHalt as halt:
+        log.error("HALT %s (%s): %s", halt.code, halt.scope.value, halt.detail)
+        return 2
+    for n in report.notes:
+        log.warning(n)
+    creds = paper_credentials(env)
+    client = AlpacaClient(creds)
+    calendar = _calendar(env)
+    scheduler = Scheduler(calendar, settings.risk.scanner.scan_interval_min)
+    prompt_version = settings.versions.prompt_version or "0.0.0"
+    runner = build_runner(settings, env, db, client, report.experiment_id, report.phase_id, prompt_version)
+    sip, iex = make_market_data(client, settings.risk.market_data.market_data_plan, RequestBudget())
+    svc = build_portfolio_services(
+        settings,
+        env,
+        db,
+        broker,
+        sip,
+        calendar,
+        client,
+        report.experiment_id,
+        report.phase_id,
+        report.phase_seq,
+        prompt_version,
+    )
+    exp = db.get_experiment(env.get("EXPERIMENT_ID") or "") or {}
+    started_on = exp.get("started_on") or date.today()
+    register_portfolio_jobs(scheduler, runner, svc, calendar, db, started_on)
+    register_execution_jobs(scheduler, db, broker, client, iex, report.experiment_id, report.phase_id, sip)
     log.info(
         "scheduler started with %d job(s); next event %s", len(scheduler.jobs), scheduler.next_event(scheduler.clock())
     )
     asyncio.run(scheduler.run_forever())
+    return 0
+
+
+def cmd_digest(env: dict[str, str]) -> int:
+    """Build and send (or print) the daily digest for TRADEAGENT_DIGEST_DATE (default: today, ET)."""
+    from tradeagent.adapters.alpaca.calendar import ET
+    from tradeagent.adapters.email.resend import NullSender
+    from tradeagent.ops.digest import build_digest
+    from tradeagent.ops.notifications import Notifier
+    from tradeagent.ops.portfolio_jobs import make_sender
+
+    settings = load_settings(env=env)
+    db = Database(connect(env["DATABASE_URL"]))
+    exp = db.get_experiment(env.get("EXPERIMENT_ID") or "")
+    if exp is None:
+        log.error("EXPERIMENT_ID not found")
+        return 2
+    d = (
+        date.fromisoformat(env["TRADEAGENT_DIGEST_DATE"])
+        if env.get("TRADEAGENT_DIGEST_DATE")
+        else datetime.now(tz=ET).date()
+    )
+    eid = UUID(str(exp["id"]))
+    digest = build_digest(db, eid, d, {}, None, Decimal(str(exp["equity_start_usd"])))
+    phase = db.open_phase(eid)
+    sender = make_sender(env)
+    notifier = Notifier(
+        db,
+        sender,
+        env.get("OWNER_EMAIL") or "owner@localhost",
+        settings.risk.execution.execution_mode,
+        int(phase["seq"]) if phase else 0,
+    )
+    with db.transaction():
+        notifier.send("daily_digest", digest.subject, digest.text, digest.html, digest.payload)
+    if isinstance(sender, NullSender):
+        print(digest.subject)
+        print(digest.text)
     return 0
 
 
@@ -145,13 +219,20 @@ def cmd_verify_projections(env: dict[str, str]) -> int:
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     parser = argparse.ArgumentParser(prog="tradeagent")
-    parser.add_argument("command", choices=["boot-check", "run", "verify-projections", "probe-fractional-stop"])
+    parser.add_argument(
+        "command", choices=["boot-check", "run", "verify-projections", "probe-fractional-stop", "digest"]
+    )
     args = parser.parse_args(argv)
     env = dict(os.environ)
     try:
-        return {"boot-check": cmd_boot_check, "run": cmd_run, "verify-projections": cmd_verify_projections}[
-            args.command
-        ](env)
+        commands = {
+            "boot-check": cmd_boot_check,
+            "run": cmd_run,
+            "verify-projections": cmd_verify_projections,
+            "probe-fractional-stop": cmd_probe_fractional_stop,
+            "digest": cmd_digest,
+        }
+        return commands[args.command](env)
     except LiveLockedOut as exc:
         log.error("%s", exc)
         return 3

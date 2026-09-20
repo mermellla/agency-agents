@@ -19,24 +19,27 @@ tradeagent/
     edgar/           client.py ✔ (tickers, submissions, fair-access throttle), filings.py, xbrl.py                S2 ✔ / S5
     finnhub/         earnings.py ✔                                                                            S2 ✔
     typesafe/        jev.py ✔, questions.py ✔ (ADR-0023 judgment engine)                                       S2 ✔
-    email/           resend.py, smtp.py, templates/                                                           S4
+    email/           resend.py ✔ (ADR-0010; NullSender keeps the notifications audit without a provider), smtp.py   S4 ✔
   data/              registry.py ✔ (primary/fallback per domain, health, source_status), staleness.py         S2 ✔ / S4
   universe/          builder.py ✔ (ADR-0005 membership test + ADR-0003 floors + exclusions)                    S2 ✔
   scanner/           signals/{technical,catalyst}.py ✔ (tier-aware; Jev catalysts), composite.py ✔ (ADR-0008),
                      regime.py ✔ (ADR-0009), scanner.py ✔ (pure), runner.py ✔ (I/O + persist)                S2 ✔
   agent/             dossier.py, prompts/ (versioned files), llm_client.py, triage.py, decide.py, critique.py,
                      reviews.py                                                                                S5/S6
-  risk/              desk.py (§8.1 order), sizing.py, budget.py, guards.py                                    S4
+  risk/              desk.py ✔ (§8.1 order), sizing.py ✔, budget.py ✔ (§9), guards.py ✔ (§8.7)                    S4 ✔
   execution/         broker_policy.py ✔ (§8.10), reconcile.py ✔ (§8.6), ledger_apply.py ✔ (fill → position → lots →
-                     fees → cash), stops.py ✔ (ADR-0013), corporate.py ✔, broker_factory.py ✔; orders.py (state
-                     machine client), executor.py, ext_hours.py, reconstruction.py (ADR-0017 fill model)      S3 ✔ / S4/S6
-  portfolios/        primary.py, quant_baseline.py (QB-1.0), benchmarks.py, critique_shadow.py (ADR-0018),
-                     deterministic_exit_shadow.py                                                              S4/S6
-  analytics/         forecast_resolution.py (ADR-0017), candidate_outcomes.py, closed_trades.py,
-                     report.py (§13.3, ADR-0016), fees.py (ADR-0012)                                           S4/S7
-  ops/               scheduler.py ✔, boot.py ✔, checks.py ✔, jobs.py ✔ (scan jobs; composition root),
-                     halts.py, notifications.py, context_prune.py (§10.4), digest.py                           S1–S4
-  cli.py             `tradeagent run | boot-check | report | verify-projections | probe-fractional-stop`       S1+
+                     fees → cash), stops.py ✔ (ADR-0013), corporate.py ✔, broker_factory.py ✔, executor.py ✔
+                     (reservation, REJECTED_BROKER, sibling cancel), reconstruction.py ✔ (ADR-0017 fill model);
+                     ext_hours.py                                                                             S3/S4 ✔ / S6
+  portfolios/        quant_baseline.py ✔ (QB-1.0), sim_exits.py ✔ (deterministic exits on retrievable bars), levels.py ✔,
+                     benchmarks.py ✔, dividends.py ✔; primary.py, critique_shadow.py (ADR-0018),
+                     deterministic_exit_shadow.py                                                              S4 ✔ / S5/S6
+  analytics/         closed_trades.py ✔ (two P&L views, benchmark windows from fill_at); forecast_resolution.py
+                     (ADR-0017), candidate_outcomes.py, report.py (§13.3, ADR-0016)                            S4 ✔ / S7
+  ops/               scheduler.py ✔, boot.py ✔, checks.py ✔, jobs.py ✔ (scan + execution jobs), portfolio_jobs.py ✔
+                     (risk/budget/QB/benchmarks/digest composition root), halts.py ✔, notifications.py ✔,
+                     digest.py ✔ (Jev-tagged); context_prune.py (§10.4)                                        S1–S4 ✔
+  cli.py             `tradeagent run | boot-check | digest | verify-projections | probe-fractional-stop | report`  S1+ (report S7)
 ```
 Dependency direction: `adapters → domain`; `scanner/agent/risk/execution/portfolios/analytics → domain + interfaces +
 persistence`; `ops` composes everything. No module imports an adapter concretely except the composition root

@@ -27,6 +27,7 @@ class AppliedFill:
     customer_fees: Decimal
     unverified_fees: Decimal
     position_closed: bool
+    position_opened: bool = False
 
 
 def apply_fill(
@@ -42,6 +43,8 @@ def apply_fill(
     settles_on: date | None,
     reconstruction_basis: str | None = None,
     half_spread_estimate: Decimal | None = None,
+    additional_slippage_bps: Decimal = Decimal(0),
+    shadow_estimate_price: Decimal | None = None,
 ) -> AppliedFill | None:
     """Returns None when the fill was already applied (idempotent replay)."""
     conn = db.conn
@@ -56,6 +59,7 @@ def apply_fill(
         "select * from positions where portfolio_id = %s and symbol = %s and status = 'open'",
         (portfolio_id, order["symbol"]),
     ).fetchone()
+    opened = pos is None
     if pos is None:
         if side != OrderSide.BUY:
             raise psycopg.errors.CheckViolation(
@@ -76,7 +80,8 @@ def apply_fill(
         assert pos is not None
     row = conn.execute(
         """insert into fills (order_id, portfolio_id, experiment_id, experiment_phase_id, position_id, symbol, side, qty, price, notional, fill_at, fill_source,
-           broker_fill_id, reconstruction_basis, half_spread_estimate) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
+           broker_fill_id, reconstruction_basis, half_spread_estimate, additional_slippage_bps, shadow_estimate_price, paper_fill_minus_shadow_estimate_bps)
+           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
         (
             order["id"],
             portfolio_id,
@@ -93,6 +98,13 @@ def apply_fill(
             broker_fill_id,
             reconstruction_basis,
             half_spread_estimate,
+            additional_slippage_bps,
+            shadow_estimate_price,
+            (
+                ((price - shadow_estimate_price) / shadow_estimate_price * 10_000).quantize(CENT)
+                if shadow_estimate_price
+                else None
+            ),
         ),
     ).fetchone()
     assert row is not None
@@ -193,4 +205,4 @@ def apply_fill(
             f"fill:{fill_id}",
         ),
     )
-    return AppliedFill(fill_id, UUID(str(pos["id"])), delta, customer, unverified, closed)
+    return AppliedFill(fill_id, UUID(str(pos["id"])), delta, customer, unverified, closed, opened)

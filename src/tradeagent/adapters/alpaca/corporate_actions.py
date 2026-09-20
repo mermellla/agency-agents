@@ -25,6 +25,33 @@ class SplitAction:
 
 
 @dataclass(frozen=True)
+class CashDividend:
+    symbol: str
+    rate: Decimal  # USD per share
+    ex_date: date
+    payable_date: date | None
+    record_date: date | None
+
+
+def parse_dividends(data: dict[str, Any]) -> list[CashDividend]:
+    ca = data.get("corporate_actions") or {}
+    out: list[CashDividend] = []
+    for r in ca.get("cash_dividends") or []:
+        if not r.get("ex_date") or r.get("rate") is None:
+            continue
+        out.append(
+            CashDividend(
+                str(r["symbol"]),
+                Decimal(str(r["rate"])),
+                date.fromisoformat(r["ex_date"]),
+                date.fromisoformat(r["payable_date"]) if r.get("payable_date") else None,
+                date.fromisoformat(r["record_date"]) if r.get("record_date") else None,
+            )
+        )
+    return out
+
+
+@dataclass(frozen=True)
 class SymbolChange:
     old_symbol: str
     new_symbol: str
@@ -72,3 +99,19 @@ class AlpacaCorporateActions:
             base=MARKET_DATA_URL,
         )
         return parse_actions(data)
+
+    def dividends_for(self, symbols: list[str], start: date, end: date) -> list[CashDividend]:
+        if not symbols:
+            return []
+        data = self.client.get(
+            "/v1/corporate-actions",
+            {
+                "symbols": ",".join(symbols),
+                "types": "cash_dividend",
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "limit": 1000,
+            },
+            base=MARKET_DATA_URL,
+        )
+        return parse_dividends(data)

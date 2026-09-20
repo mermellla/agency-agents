@@ -63,6 +63,7 @@ class ScanRunner:
         )
         self.budget = budget or RequestBudget()
         self.clock = clock or (lambda: datetime.now(tz=UTC))
+        self.last_inputs: ScanInputs | None = None
         self.history_days, self.news_age_hours = history_days, news_age_hours
         self._universe_cache: tuple[date, list[Instrument]] | None = None
 
@@ -130,6 +131,7 @@ class ScanRunner:
     ) -> ScanOutput:
         halted = self.registry.entries_halted() if self.registry.domains else []
         inputs = self.gather(kind, now, session_date, symbols_hint)
+        self.last_inputs = inputs  # the portfolio jobs (QB-1.0, simulated exits) consume the same inputs
         out = self.scanner.run(inputs)
         with self.db.transaction():
             self.db.persist_scan(out, self.experiment_id, self.phase_id, self.registry.as_json(), entries_halted=halted)

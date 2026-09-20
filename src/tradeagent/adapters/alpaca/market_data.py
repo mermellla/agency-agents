@@ -181,6 +181,81 @@ class AlpacaBars:
                 )
         return out
 
+    def quotes(self, symbol: str, start: datetime, end: datetime) -> list[Quote]:
+        """Historical consolidated quotes in [start, end], ascending (ADR-0017 usable-quote search)."""
+        now = self.clock()
+        if end > now - self.embargo:
+            raise EmbargoViolation(f"quotes end {end.isoformat()} is inside the {self.embargo} embargo")
+        stamp = SourceStamp(domain=DOMAIN, source=self.source, grade=self.grade, observed_at=now)
+        out: list[Quote] = []
+        token: str | None = None
+        while True:
+            params: dict[str, Any] = {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "limit": MAX_ROWS,
+                "feed": self.feed,
+                "sort": "asc",
+            }
+            if token:
+                params["page_token"] = token
+            data = self._get(f"/v2/stocks/{symbol}/quotes", params)
+            for q in data.get("quotes") or []:
+                if float(q.get("bp", 0)) <= 0 or float(q.get("ap", 0)) <= 0:
+                    continue
+                out.append(
+                    Quote(
+                        symbol=symbol,
+                        at=_ts(q["t"]),
+                        bid=Decimal(str(q["bp"])),
+                        ask=Decimal(str(q["ap"])),
+                        bid_size=int(q.get("bs", 0)),
+                        ask_size=int(q.get("as", 0)),
+                        feed=self.tier,
+                        stamp=stamp,
+                    )
+                )
+            token = data.get("next_page_token")
+            if not token or len(out) >= MAX_ROWS * 3:
+                break
+        return out
+
+    def trades(self, symbol: str, start: datetime, end: datetime) -> list[Trade]:
+        """Historical consolidated trades in [start, end], ascending."""
+        now = self.clock()
+        if end > now - self.embargo:
+            raise EmbargoViolation(f"trades end {end.isoformat()} is inside the {self.embargo} embargo")
+        stamp = SourceStamp(domain=DOMAIN, source=self.source, grade=self.grade, observed_at=now)
+        out: list[Trade] = []
+        token: str | None = None
+        while True:
+            params: dict[str, Any] = {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "limit": MAX_ROWS,
+                "feed": self.feed,
+                "sort": "asc",
+            }
+            if token:
+                params["page_token"] = token
+            data = self._get(f"/v2/stocks/{symbol}/trades", params)
+            for t in data.get("trades") or []:
+                out.append(
+                    Trade(
+                        symbol=symbol,
+                        at=_ts(t["t"]),
+                        price=Decimal(str(t["p"])),
+                        size=int(t.get("s", 0)),
+                        conditions=tuple(t.get("c") or ()),
+                        feed=self.tier,
+                        stamp=stamp,
+                    )
+                )
+            token = data.get("next_page_token")
+            if not token or len(out) >= MAX_ROWS * 3:
+                break
+        return out
+
     def health(self) -> SourceStamp:
         now = self.clock()
         try:

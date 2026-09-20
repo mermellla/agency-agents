@@ -24,7 +24,7 @@ from tradeagent.domain.enums import (
     PortfolioKind,
     ReconcileResult,
 )
-from tradeagent.domain.models import Instrument, LLMCall, OrderRequest
+from tradeagent.domain.models import Decision, Instrument, LLMCall, OrderRequest
 
 # YAML config carries dates; jsonb payloads serialise them as ISO strings.
 psycopg.types.json.set_json_dumps(lambda obj: json.dumps(obj, default=str, sort_keys=True))
@@ -612,3 +612,392 @@ class Database:
                 "insert into lot_events (lot_id, at, kind, qty_delta, reason) values (%s, %s, 'symbol_change', 0, %s)",
                 (lot["id"], at, f"to {new_symbol}"),
             )
+
+    # ---- decisions, budget, analytics — Slice 4
+    def insert_decision(self, d: Decision) -> UUID:
+        """Persist a §7.6 decision after validation (status validated / rejected / no_action); the timeline is
+        complete at insert so the write-once trigger never has to be revisited."""
+        pr, t, f = d.proposal, d.timeline, d.forecast
+        cols: dict[str, Any] = dict(
+            decision_id=d.decision_id,
+            experiment_id=d.experiment_id,
+            experiment_phase_id=d.experiment_phase_id,
+            portfolio_id=d.portfolio_id,
+            scan_id=d.scan_id,
+            candidate_id=d.candidate_id,
+            data_snapshot_id=d.data_snapshot_id,
+            position_id=d.position_id,
+            origin=d.origin.value,
+            kind=d.kind.value,
+            trigger_reason=d.trigger_reason,
+            status=d.status.value,
+            reject_code=d.reject_code.value if d.reject_code else None,
+            signal_observed_at=t.signal_observed_at,
+            scanner_completed_at=t.scanner_completed_at,
+            triage_completed_at=t.triage_completed_at,
+            decision_completed_at=t.decision_completed_at,
+            critique_completed_at=t.critique_completed_at,
+            risk_validation_completed_at=t.risk_validation_completed_at,
+            order_eligible_at=t.order_eligible_at,
+            order_submitted_at=t.order_submitted_at,
+            fill_at=t.fill_at,
+            sip_signal_price=d.sip_signal_price,
+            sip_signal_timestamp=d.sip_signal_timestamp,
+            iex_price_at_triage=d.iex_price_at_triage,
+            iex_price_at_decision=d.iex_price_at_decision,
+            iex_price_at_order=d.iex_price_at_order,
+            signal_to_decision_move_pct=d.signal_to_decision_move_pct,
+            signal_to_order_move_pct=d.signal_to_order_move_pct,
+            blind_interval_move_pct=d.blind_interval_move_pct,
+            no_action_reason=pr.no_action_reason,
+            decision=pr.decision.value,
+            ticker=pr.ticker,
+            strategy=pr.strategy,
+            direction=pr.direction,
+            proposed_notional=pr.proposed_notional,
+            entry_type=pr.entry_type,
+            entry_price_or_range=pr.entry_price_or_range,
+            target_price=pr.target_price,
+            invalidation_price=pr.invalidation_price,
+            time_stop_at=pr.time_stop_at,
+            expected_holding_period=pr.expected_holding_period,
+            confidence=pr.confidence,
+            forecast_event=f.forecast_event if f else None,
+            forecast_target_price_at_entry=f.target_price_at_entry if f else None,
+            forecast_invalidation_price_at_entry=f.invalidation_price_at_entry if f else None,
+            forecast_time_stop_at_entry=f.time_stop_at_entry if f else None,
+            probability_pre_critique=f.probability_pre_critique if f else pr.probability,
+            probability_post_critique=f.probability_post_critique if f else None,
+            critique_recommendation=d.critique.recommendation.value if d.critique else None,
+            critique_changed_proposal=d.critique_changed_proposal,
+            pre_critique_proposal=(
+                psycopg.types.json.Jsonb(d.pre_critique_proposal.model_dump(mode="json"))
+                if d.pre_critique_proposal
+                else None
+            ),
+            expected_upside_percent=pr.expected_upside_percent,
+            expected_downside_percent=pr.expected_downside_percent,
+            expected_value=pr.expected_value,
+            reward_risk_ratio=pr.reward_risk_ratio,
+            catalyst=pr.catalyst,
+            thesis=pr.thesis,
+            supporting_evidence=psycopg.types.json.Jsonb([e.model_dump(mode="json") for e in pr.supporting_evidence]),
+            contradicting_evidence=psycopg.types.json.Jsonb(
+                [e.model_dump(mode="json") for e in pr.contradicting_evidence]
+            ),
+            earnings_in_window=pr.earnings_in_window,
+            earnings_plan=pr.earnings_plan.value if pr.earnings_plan else None,
+            earnings_plan_reason=pr.earnings_plan_reason,
+            market_regime=d.market_regime.value if d.market_regime else None,
+            reason_for_entry=pr.reason_for_entry,
+            reason_for_exit_if_existing_position=pr.reason_for_exit_if_existing_position,
+            conditions_to_exit_early=psycopg.types.json.Jsonb(list(pr.conditions_to_exit_early)),
+            sources=psycopg.types.json.Jsonb([e.model_dump(mode="json") for e in pr.sources]),
+            prompt_version=d.prompt_version,
+            exclusion_list_version=d.exclusion_list_version,
+            config_version=d.config_version,
+            scanner_version=d.scanner_version,
+            qb_rules_version=d.qb_rules_version,
+            model_triage=d.model_triage,
+            model_decision=d.model_decision,
+            model_critique=d.model_critique,
+            tokens_in=d.tokens_in,
+            tokens_out=d.tokens_out,
+            tokens_cached=d.tokens_cached,
+            cost_usd=d.cost_usd,
+        )
+        keys = list(cols)
+        self.conn.execute(
+            f"insert into decisions ({', '.join(keys)}) values ({', '.join(['%s'] * len(keys))})",
+            [cols[k] for k in keys],
+        )
+        return d.decision_id
+
+    def decision(self, decision_id: UUID) -> dict[str, Any] | None:
+        return self.conn.execute("select * from decisions where decision_id = %s", (decision_id,)).fetchone()
+
+    def set_decision_status(self, decision_id: UUID, status: str, reject_code: str | None = None) -> None:
+        self.conn.execute(
+            "update decisions set status = %s, reject_code = coalesce(%s, reject_code) where decision_id = %s",
+            (status, reject_code, decision_id),
+        )
+
+    def set_decision_submitted(self, decision_id: UUID, at: datetime) -> None:
+        self.conn.execute(
+            "update decisions set order_submitted_at = coalesce(order_submitted_at, %s) where decision_id = %s",
+            (at, decision_id),
+        )
+
+    def set_decision_filled(self, decision_id: UUID, fill_at: datetime, position_id: UUID) -> None:
+        self.conn.execute(
+            "update decisions set fill_at = coalesce(fill_at, %s), status = 'executed', position_id = coalesce(position_id, %s) where decision_id = %s",
+            (fill_at, position_id, decision_id),
+        )
+
+    def decisions_on(self, experiment_id: UUID, day_start: datetime, day_end: datetime) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from decisions where experiment_id = %s and created_at >= %s and created_at < %s order by created_at",
+            (experiment_id, day_start, day_end),
+        ).fetchall()
+
+    def recent_decisions(self, portfolio_id: UUID, n: int) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select status, reject_code, origin from decisions where portfolio_id = %s and origin in ('llm', 'quant') and kind = 'entry' order by created_at desc limit %s",
+            (portfolio_id, n),
+        ).fetchall()
+
+    # ---- orders and positions helpers
+    def order(self, order_id: UUID) -> dict[str, Any] | None:
+        return self.conn.execute("select * from orders where id = %s", (order_id,)).fetchone()
+
+    def pending_reconstruction_orders(self, experiment_id: UUID) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from orders where experiment_id = %s and status = 'FILL_PENDING_RECONSTRUCTION' and is_simulated order by order_eligible_at, created_at",
+            (experiment_id,),
+        ).fetchall()
+
+    def open_orders_for_symbol(
+        self, portfolio_id: UUID, symbol: str, purposes: tuple[str, ...]
+    ) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from orders where portfolio_id = %s and symbol = %s and purpose = any(%s) and order_is_open(status) order by created_at",
+            (portfolio_id, symbol, list(purposes)),
+        ).fetchall()
+
+    def open_orders_for_position(self, position_id: UUID) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from orders where position_id = %s and order_is_open(status) order by created_at", (position_id,)
+        ).fetchall()
+
+    def orders_for_decision(self, decision_id: UUID) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from orders where decision_id = %s order by leg_seq", (decision_id,)
+        ).fetchall()
+
+    def orders_created_between(self, portfolio_id: UUID, start: datetime, end: datetime) -> int:
+        row = self.conn.execute(
+            "select count(*) as n from orders where portfolio_id = %s and created_at >= %s and created_at < %s and purpose in ('entry', 'exit', 'reduce')",
+            (portfolio_id, start, end),
+        ).fetchone()
+        assert row is not None
+        return int(row["n"])
+
+    def position(self, position_id: UUID) -> dict[str, Any] | None:
+        return self.conn.execute("select * from positions where id = %s", (position_id,)).fetchone()
+
+    def set_working_levels(
+        self, position_id: UUID, target: Decimal | None, invalidation: Decimal | None, time_stop_at: datetime | None
+    ) -> None:
+        self.conn.execute(
+            "update positions set working_target_price = %s, working_invalidation_price = %s, working_time_stop_at = %s where id = %s",
+            (target, invalidation, time_stop_at, position_id),
+        )
+
+    def fills_for_position(self, position_id: UUID) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from fills where position_id = %s order by fill_at, created_at", (position_id,)
+        ).fetchall()
+
+    def fees_for_position(self, position_id: UUID) -> dict[str, Decimal]:
+        rows = self.conn_rows(
+            "select coalesce(f.classification, 'customer_debited') as c, coalesce(sum(f.amount_usd), 0) as s from fees f join fills x on x.id = f.fill_id where x.position_id = %s group by 1",
+            (position_id,),
+        )
+        return {str(r["c"]): Decimal(r["s"]) for r in rows}
+
+    def conn_rows(self, sql: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
+        return self.conn.execute(sql, params).fetchall()
+
+    def llm_cost_for_decisions(self, decision_ids: list[UUID]) -> Decimal:
+        if not decision_ids:
+            return Decimal(0)
+        row = self.conn.execute(
+            "select coalesce(sum(cost_usd), 0) as s from llm_calls where decision_id = any(%s)", (decision_ids,)
+        ).fetchone()
+        assert row is not None
+        return Decimal(row["s"])
+
+    def llm_calls_between(self, experiment_id: UUID, start: datetime, end: datetime, exclude_prefix: str) -> int:
+        row = self.conn.execute(
+            "select count(*) as n from llm_calls where experiment_id = %s and created_at >= %s and created_at < %s and model not like %s",
+            (experiment_id, start, end, exclude_prefix + "%"),
+        ).fetchone()
+        assert row is not None
+        return int(row["n"])
+
+    def portfolio_by_kind(self, experiment_id: UUID, kind: str) -> dict[str, Any]:
+        row = self.conn.execute(
+            "select * from portfolios where experiment_id = %s and kind = %s", (experiment_id, kind)
+        ).fetchone()
+        assert row is not None, f"portfolio kind {kind} missing"
+        return row
+
+    def instrument(self, symbol: str) -> dict[str, Any] | None:
+        return self.conn.execute("select * from instruments where symbol = %s", (symbol,)).fetchone()
+
+    def append_cash_event(
+        self,
+        portfolio_id: UUID,
+        experiment_id: UUID,
+        phase_id: UUID,
+        at: datetime,
+        kind: str,
+        amount: Decimal,
+        idempotency_key: str,
+        reason: str,
+        settles_on: date | None = None,
+        fill_id: UUID | None = None,
+    ) -> bool:
+        """Idempotent cash movement under the portfolio lock (dividends, adjustments). Returns True when written."""
+        if self.conn.execute("select 1 from cash_ledger where idempotency_key = %s", (idempotency_key,)).fetchone():
+            return False
+        self.conn.execute("select lock_portfolio(%s)", (portfolio_id,))
+        balance = self.cash_balance(portfolio_id) + amount
+        self.conn.execute(
+            """insert into cash_ledger (portfolio_id, experiment_id, experiment_phase_id, at, kind, amount_usd, balance_after_usd, settles_on, fill_id, reason, idempotency_key)
+               values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                portfolio_id,
+                experiment_id,
+                phase_id,
+                at,
+                kind,
+                amount,
+                balance,
+                settles_on,
+                fill_id,
+                reason,
+                idempotency_key,
+            ),
+        )
+        return True
+
+    # ---- budget ledger (§9, ADR-0004)
+    def budget_row(self, experiment_id: UUID, trade_date: date, bucket: str) -> dict[str, Any] | None:
+        return self.conn.execute(
+            "select * from budget_ledger where experiment_id = %s and trade_date = %s and bucket = %s",
+            (experiment_id, trade_date, bucket),
+        ).fetchone()
+
+    def latest_budget_row_before(
+        self, experiment_id: UUID, trade_date: date, bucket: str, month_start: date
+    ) -> dict[str, Any] | None:
+        return self.conn.execute(
+            "select * from budget_ledger where experiment_id = %s and bucket = %s and trade_date < %s and trade_date >= %s order by trade_date desc limit 1",
+            (experiment_id, bucket, trade_date, month_start),
+        ).fetchone()
+
+    def insert_budget_row(
+        self, experiment_id: UUID, trade_date: date, bucket: str, allowance: Decimal, carried_in: Decimal
+    ) -> dict[str, Any]:
+        row = self.conn.execute(
+            "insert into budget_ledger (experiment_id, trade_date, bucket, allowance_usd, carried_in_usd) values (%s, %s, %s, %s, %s) on conflict (experiment_id, trade_date, bucket) do update set allowance_usd = budget_ledger.allowance_usd returning *",
+            (experiment_id, trade_date, bucket, allowance, carried_in),
+        ).fetchone()
+        assert row is not None
+        return row
+
+    def charge_budget(
+        self,
+        experiment_id: UUID,
+        trade_date: date,
+        bucket: str,
+        cost: Decimal,
+        overage: Decimal,
+        exhausted_at: datetime | None,
+    ) -> dict[str, Any]:
+        row = self.conn.execute(
+            "update budget_ledger set spent_usd = spent_usd + %s, overage_usd = %s, exhausted_at = coalesce(exhausted_at, %s) where experiment_id = %s and trade_date = %s and bucket = %s returning *",
+            (cost, overage, exhausted_at, experiment_id, trade_date, bucket),
+        ).fetchone()
+        assert row is not None
+        return row
+
+    # ---- benchmarks and closed trades (§12, §13)
+    def upsert_benchmark_price(self, symbol: str, trade_date: date, close: Decimal, source: str) -> None:
+        self.conn.execute(
+            "insert into benchmark_prices (symbol, trade_date, close, adjusted_close, source) values (%s, %s, %s, %s, %s) on conflict (symbol, trade_date) do update set close = excluded.close, source = excluded.source",
+            (symbol, trade_date, close, close, source),
+        )
+
+    def benchmark_close_on_or_before(self, symbol: str, on: date) -> tuple[date, Decimal] | None:
+        row = self.conn.execute(
+            "select trade_date, close from benchmark_prices where symbol = %s and trade_date <= %s order by trade_date desc limit 1",
+            (symbol, on),
+        ).fetchone()
+        return (row["trade_date"], Decimal(row["close"])) if row else None
+
+    def insert_closed_trade(self, cols: dict[str, Any]) -> UUID:
+        keys = list(cols)
+        row = self.conn.execute(
+            f"insert into closed_trades ({', '.join(keys)}) values ({', '.join(['%s'] * len(keys))}) on conflict (position_id) do nothing returning id",
+            [cols[k] for k in keys],
+        ).fetchone()
+        if row is None:
+            existing = self.conn.execute(
+                "select id from closed_trades where position_id = %s", (cols["position_id"],)
+            ).fetchone()
+            assert existing is not None
+            return UUID(str(existing["id"]))
+        return UUID(str(row["id"]))
+
+    def closed_trades_between(self, experiment_id: UUID, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from closed_trades where experiment_id = %s and exit_fill_at >= %s and exit_fill_at < %s order by exit_fill_at",
+            (experiment_id, start, end),
+        ).fetchall()
+
+    def halts_between(self, experiment_id: UUID, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select * from halts where (experiment_id = %s or experiment_id is null) and at >= %s and at < %s order by at",
+            (experiment_id, start, end),
+        ).fetchall()
+
+    def fills_between(self, experiment_id: UUID, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        return self.conn.execute(
+            "select f.*, p.name as portfolio_name from fills f join portfolios p on p.id = f.portfolio_id where f.experiment_id = %s and f.fill_at >= %s and f.fill_at < %s order by f.fill_at",
+            (experiment_id, start, end),
+        ).fetchall()
+
+    def expire_order(self, order_id: UUID, reason: str) -> None:
+        self.transition_order(order_id, OrderStatus.EXPIRED, reason)
+
+    def create_benchmark_decision(
+        self,
+        experiment_id: UUID,
+        phase_id: UUID,
+        portfolio_id: UUID,
+        symbol: str,
+        notional: Decimal,
+        versions: dict[str, str],
+        at: datetime,
+    ) -> UUID:
+        """§12 buy-and-hold benchmark entry. The schema requires a forecast contract on every validated BUY; a
+        benchmark has none, so the contract carries labelled placeholders (unreachable target, floor invalidation,
+        far time stop) and origin=system / strategy=BENCHMARK keeps it out of calibration."""
+        row = self.conn.execute(
+            """insert into decisions (experiment_id, experiment_phase_id, portfolio_id, origin, kind, status, decision, ticker, direction, strategy,
+               proposed_notional, entry_type, reason_for_entry, trigger_reason, signal_observed_at, risk_validation_completed_at, order_eligible_at,
+               forecast_target_price_at_entry, forecast_invalidation_price_at_entry, forecast_time_stop_at_entry, probability_pre_critique,
+               prompt_version, exclusion_list_version, config_version, scanner_version, qb_rules_version)
+               values (%s, %s, %s, 'system', 'entry', 'validated', 'BUY', %s, 'long', 'BENCHMARK', %s, 'market',
+               'benchmark buy at experiment start close (§12); forecast contract is a schema placeholder, excluded from calibration',
+               'benchmark_start', %s, %s, %s, 1000000, 0.01, '2099-12-31T00:00:00Z', 0.5, %s, %s, %s, %s, %s) returning decision_id""",
+            (
+                experiment_id,
+                phase_id,
+                portfolio_id,
+                symbol,
+                notional,
+                at,
+                at,
+                at,
+                versions["prompt_version"],
+                versions["exclusion_list_version"],
+                versions["config_version"],
+                versions["scanner_version"],
+                versions["qb_rules_version"],
+            ),
+        ).fetchone()
+        assert row is not None
+        return UUID(str(row["decision_id"]))
